@@ -7,416 +7,386 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
-import net.agolyakov.agoslider.data.model.ble.AgoSliderAlarm
-import net.agolyakov.agoslider.data.model.ble.AgoSliderTime
-import net.agolyakov.agoslider.service.bluetooth.handlers.AgingOffsetReadCharacteristicHandler
-import net.agolyakov.agoslider.service.bluetooth.handlers.AutoBrightnessReadCharacteristicHandler
-import net.agolyakov.agoslider.service.bluetooth.handlers.ManualBrightnessReadCharacteristicHandler
-import net.agolyakov.agoslider.service.bluetooth.handlers.OnOffReadCharacteristicHandler
-import net.agolyakov.agoslider.service.bluetooth.handlers.RtcTemperatureReadCharacteristicHandler
-import net.agolyakov.agoslider.service.bluetooth.handlers.TimeReadCharacteristicHandler
-import net.agolyakov.agoslider.service.bluetooth.handlers.TurnOffAlarmReadCharacteristicHandler
-import net.agolyakov.agoslider.service.bluetooth.handlers.TurnOnAlarmReadCharacteristicHandler
-import net.agolyakov.agoslider.service.bluetooth.handlers.VersionReadCharacteristicHandler
+import net.agolyakov.agoslider.service.bluetooth.handlers.*
 import no.nordicsemi.android.ble.BleManager
 import no.nordicsemi.android.ble.data.Data
 import java.util.UUID
 
 class AgoSliderManager(
     @ApplicationContext context: Context,
-    val timeReadCharacteristicHandler: TimeReadCharacteristicHandler,
-    val onOffReadCharacteristicHandler: OnOffReadCharacteristicHandler,
-    val manualBrightnessReadCharacteristicHandler: ManualBrightnessReadCharacteristicHandler,
-    val autoBrightnessReadCharacteristicHandler: AutoBrightnessReadCharacteristicHandler,
-    var turnOnAlarmReadCharacteristicHandler: TurnOnAlarmReadCharacteristicHandler,
-    val turnOffAlarmReadCharacteristicHandler: TurnOffAlarmReadCharacteristicHandler,
-    val agingOffsetReadCharacteristicHandler: AgingOffsetReadCharacteristicHandler,
-    val rtcTemperatureReadCharacteristicHandler: RtcTemperatureReadCharacteristicHandler,
-    val versionReadCharacteristicHandler: VersionReadCharacteristicHandler
+    // Read handlers for characteristics that support read/notify
+    private val microstepsHandler: MicrostepsReadCharacteristicHandler,
+    private val runCurrentHandler: RunCurrentReadCharacteristicHandler,
+    private val holdCurrentHandler: HoldCurrentReadCharacteristicHandler,
+    private val axisUnitHandler: AxisUnitReadCharacteristicHandler,
+    private val unitsPerStepHandler: UnitsPerStepReadCharacteristicHandler,
+    private val axisSpeedHandler: AxisSpeedReadCharacteristicHandler,
+    private val axisAccelHandler: AxisAccelReadCharacteristicHandler,
+    private val virtualLimitHandler: VirtualLimitReadCharacteristicHandler,
+    private val stealthChopHandler: StealthChopReadCharacteristicHandler,
+    private val invertDirHandler: InvertDirReadCharacteristicHandler,
+    private val batteryLevelHandler: BatteryLevelReadCharacteristicHandler,
+    private val powerInfoHandler: PowerInfoReadCharacteristicHandler,
+    private val powerInfoStringHandler: PowerInfoStringReadCharacteristicHandler,
+    private val limitHandler: LimitReadCharacteristicHandler,
+    private val homeHandler: HomeReadCharacteristicHandler,
+    private val motEnHandler: MotEnReadCharacteristicHandler,
+    private val versionHandler: VersionReadCharacteristicHandler,
+    // Move is write-only, no handler needed
+    // OTA characteristics are write-only
 ) : BleManager(context) {
-    private val _tag = "AgoSliderManager"
-    private val _mtuDeferred = CompletableDeferred<Int>()
-    private var mcTimeCharacteristic: BluetoothGattCharacteristic? = null
-    private var mcOnOffCharacteristic: BluetoothGattCharacteristic? = null
-    private var mcManualBrightValueCharacteristic: BluetoothGattCharacteristic? = null
-    private var mcAutoBrightnessCharacteristic: BluetoothGattCharacteristic? = null
-    private var mcTurnOnAlarmCharacteristic: BluetoothGattCharacteristic? = null
-    private var mcTurnOffAlarmCharacteristic: BluetoothGattCharacteristic? = null
-    private var mcAgingOffsetCharacteristic: BluetoothGattCharacteristic? = null
-    private var mcRtcTemperatureCharacteristic: BluetoothGattCharacteristic? = null
-    private var mcVersionCharacteristic: BluetoothGattCharacteristic? = null
-    private var mcOtaControlCharacteristic: BluetoothGattCharacteristic? = null
-    private var mcOtaDataCharacteristic: BluetoothGattCharacteristic? = null
+
+    private val tag = "AgoSliderManager"
+    private val mtuDeferred = CompletableDeferred<Int>()
+
+    // Characteristic references
+    private var motEnCharacteristic: BluetoothGattCharacteristic? = null
+    private var homeCharacteristic: BluetoothGattCharacteristic? = null
+    private var limitCharacteristic: BluetoothGattCharacteristic? = null
+    private var moveCharacteristic: BluetoothGattCharacteristic? = null
+
+    private var battLevelCharacteristic: BluetoothGattCharacteristic? = null
+    private var pwrInfoCharacteristic: BluetoothGattCharacteristic? = null
+    private var pwrInfoStrCharacteristic: BluetoothGattCharacteristic? = null
+
+    private var microstepsCharacteristic: BluetoothGattCharacteristic? = null
+    private var runCurrentCharacteristic: BluetoothGattCharacteristic? = null
+    private var holdCurrentCharacteristic: BluetoothGattCharacteristic? = null
+    private var axisUnitCharacteristic: BluetoothGattCharacteristic? = null
+    private var unitsPerStepCharacteristic: BluetoothGattCharacteristic? = null
+    private var axisSpeedCharacteristic: BluetoothGattCharacteristic? = null
+    private var axisAccelCharacteristic: BluetoothGattCharacteristic? = null
+    private var virtualLimitCharacteristic: BluetoothGattCharacteristic? = null
+    private var stealthChopCharacteristic: BluetoothGattCharacteristic? = null
+    private var invertDirCharacteristic: BluetoothGattCharacteristic? = null
+
+    private var versionCharacteristic: BluetoothGattCharacteristic? = null
+    private var otaControlCharacteristic: BluetoothGattCharacteristic? = null
+    private var otaDataCharacteristic: BluetoothGattCharacteristic? = null
 
     override fun isRequiredServiceSupported(gatt: BluetoothGatt): Boolean {
-        gatt.getService(SERVICE_CONTROL_UUID)?.let { service ->
-            mcTimeCharacteristic = service.getCharacteristic(MC_TIME_CHAR_UUID)
-            mcOnOffCharacteristic = service.getCharacteristic(MC_TURN_ON_CONTROL_CHAR_UUID)
-            mcManualBrightValueCharacteristic = service.getCharacteristic(MC_MANUAL_BRIGHT_VAL_CHAR_UUID)
-            mcAutoBrightnessCharacteristic = service.getCharacteristic(MC_AUTO_BRIGHT_ENABLE_CHAR_UUID)
-            mcTurnOnAlarmCharacteristic = service.getCharacteristic(MC_TURN_ON_ALARM_CHAR_UUID)
-            mcTurnOffAlarmCharacteristic = service.getCharacteristic(MC_TURN_OFF_ALARM_CHAR_UUID)
-            mcAgingOffsetCharacteristic = service.getCharacteristic(MC_AGING_OFFSET_CHAR_UUID)
-            mcRtcTemperatureCharacteristic = service.getCharacteristic(MC_TEMPERATURE_CHAR_UUID)
-            mcVersionCharacteristic = service.getCharacteristic(MC_VERSION_CHAR_UUID)
-            mcOtaControlCharacteristic = service.getCharacteristic(MC_OTA_CONTROL_CHAR_UUID)
-            mcOtaDataCharacteristic = service.getCharacteristic(MC_OTA_DATA_CHAR_UUID)
-        }
+        val service = gatt.getService(SERVICE_CONTROL_UUID) ?: return false
 
-        return mcTimeCharacteristic != null
-                && mcOnOffCharacteristic != null
-                && mcManualBrightValueCharacteristic != null
-                && mcAutoBrightnessCharacteristic != null
-                && mcTurnOnAlarmCharacteristic != null
-                && mcTurnOffAlarmCharacteristic != null
+        motEnCharacteristic = service.getCharacteristic(MOT_EN_CHAR_UUID)
+        homeCharacteristic = service.getCharacteristic(HOME_CHAR_UUID)
+        limitCharacteristic = service.getCharacteristic(LIMIT_CHAR_UUID)
+        moveCharacteristic = service.getCharacteristic(MOVE_CHAR_UUID)
 
-                // commented for dirty backward compatibility:
-                //&& mcAgingOffsetCharacteristic != null
-                //&& mcRtcTemperatureCharacteristic != null
-                //&& mcVersionCharacteristic != null
-                //&& mcOtaControlCharacteristic != null
-                //&& mcOtaDataCharacteristic != null
+        battLevelCharacteristic = service.getCharacteristic(BATT_LEVEL_CHAR_UUID)
+        pwrInfoCharacteristic = service.getCharacteristic(PWR_INFO_CHAR_UUID)
+        pwrInfoStrCharacteristic = service.getCharacteristic(PWR_INFO_STR_CHAR_UUID)
+
+        microstepsCharacteristic = service.getCharacteristic(MICROSTEPS_CHAR_UUID)
+        runCurrentCharacteristic = service.getCharacteristic(RUN_CURRENT_CHAR_UUID)
+        holdCurrentCharacteristic = service.getCharacteristic(HOLD_CURRENT_CHAR_UUID)
+        axisUnitCharacteristic = service.getCharacteristic(AXIS_UNIT_CHAR_UUID)
+        unitsPerStepCharacteristic = service.getCharacteristic(UNITS_PER_STEP_CHAR_UUID)
+        axisSpeedCharacteristic = service.getCharacteristic(AXIS_SPEED_CHAR_UUID)
+        axisAccelCharacteristic = service.getCharacteristic(AXIS_ACCEL_CHAR_UUID)
+        virtualLimitCharacteristic = service.getCharacteristic(VIRTUAL_LIMIT_CHAR_UUID)
+        stealthChopCharacteristic = service.getCharacteristic(STEALTHCHOP_CHAR_UUID)
+        invertDirCharacteristic = service.getCharacteristic(INVERT_DIR_CHAR_UUID)
+
+        versionCharacteristic = service.getCharacteristic(VERSION_CHAR_UUID)
+        otaControlCharacteristic = service.getCharacteristic(OTA_CONTROL_CHAR_UUID)
+        otaDataCharacteristic = service.getCharacteristic(OTA_DATA_CHAR_UUID)
+
+        // All mandatory characteristics must be present
+        return motEnCharacteristic != null &&
+                homeCharacteristic != null &&
+                limitCharacteristic != null &&
+                moveCharacteristic != null &&
+                battLevelCharacteristic != null &&
+                pwrInfoCharacteristic != null &&
+                pwrInfoStrCharacteristic != null &&
+                microstepsCharacteristic != null &&
+                runCurrentCharacteristic != null &&
+                holdCurrentCharacteristic != null &&
+                axisUnitCharacteristic != null &&
+                unitsPerStepCharacteristic != null &&
+                axisSpeedCharacteristic != null &&
+                axisAccelCharacteristic != null &&
+                virtualLimitCharacteristic != null &&
+                stealthChopCharacteristic != null &&
+                invertDirCharacteristic != null &&
+                versionCharacteristic != null &&
+                otaControlCharacteristic != null &&
+                otaDataCharacteristic != null
     }
 
     override fun onServicesInvalidated() {
-        mcTimeCharacteristic = null
-        mcOnOffCharacteristic = null
-        mcManualBrightValueCharacteristic = null
-        mcAutoBrightnessCharacteristic = null
-        mcTurnOnAlarmCharacteristic = null
-        mcTurnOffAlarmCharacteristic = null
-        mcAgingOffsetCharacteristic = null
-        mcRtcTemperatureCharacteristic = null
-        mcVersionCharacteristic = null
-        mcOtaControlCharacteristic = null
-        mcOtaDataCharacteristic = null
+        motEnCharacteristic = null
+        homeCharacteristic = null
+        limitCharacteristic = null
+        moveCharacteristic = null
+        battLevelCharacteristic = null
+        pwrInfoCharacteristic = null
+        pwrInfoStrCharacteristic = null
+        microstepsCharacteristic = null
+        runCurrentCharacteristic = null
+        holdCurrentCharacteristic = null
+        axisUnitCharacteristic = null
+        unitsPerStepCharacteristic = null
+        axisSpeedCharacteristic = null
+        axisAccelCharacteristic = null
+        virtualLimitCharacteristic = null
+        stealthChopCharacteristic = null
+        invertDirCharacteristic = null
+        versionCharacteristic = null
+        otaControlCharacteristic = null
+        otaDataCharacteristic = null
     }
 
     override fun initialize() {
         super.initialize()
-        setupNotifications()
-        setupMtu()
-    }
-
-    private fun setupMtu() {
         requestMtu(BLE_MTU)
-            .with { device, mtu ->
-            Log.d(_tag, "MTU set to: $mtu")
-            _mtuDeferred.complete(mtu)
-        }.fail { device, status ->
-            Log.w(_tag, "MTU request failed, using default value 23")
-            _mtuDeferred.complete(23) // Fallback to default
-        }.enqueue()
+            .with { _, mtu ->
+                Log.d(tag, "MTU set to $mtu")
+                mtuDeferred.complete(mtu)
+            }
+            .fail { _, status ->
+                Log.w(tag, "MTU request failed, using default 23, status=$status")
+                mtuDeferred.complete(23)
+            }
+            .enqueue()
+
+        // Enable notifications for characteristics that support them
+        enableNotification(motEnCharacteristic, motEnHandler)
+        enableNotification(homeCharacteristic, homeHandler)
+        enableNotification(limitCharacteristic, limitHandler)
+        enableNotification(battLevelCharacteristic, batteryLevelHandler)
+        enableNotification(pwrInfoCharacteristic, powerInfoHandler)
+        enableNotification(pwrInfoStrCharacteristic, powerInfoStringHandler)
+        enableNotification(versionCharacteristic, versionHandler)
     }
 
-    private fun setupNotifications() {
-        // Time characteristic notifications
-        timeReadCharacteristicHandler.let {
-            setNotificationCallback(mcTimeCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-            enableNotifications(mcTimeCharacteristic).enqueue()
-        }
-
-        // On/Off characteristic notifications
-        onOffReadCharacteristicHandler.let {
-            setNotificationCallback(mcOnOffCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-            enableNotifications(mcOnOffCharacteristic).enqueue()
-        }
-
-        // Version characteristic notifications
-        versionReadCharacteristicHandler.let {
-            setNotificationCallback(mcVersionCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-            enableNotifications(mcVersionCharacteristic).enqueue()
+    private fun enableNotification(
+        characteristic: BluetoothGattCharacteristic?,
+        handler: ReadCharacteristicHandler
+    ) {
+        characteristic?.let {
+            setNotificationCallback(it).with { device, data ->
+                handler.onReadCharacteristicCallback(device, data)
+            }
+            enableNotifications(it).enqueue()
         }
     }
 
-    fun getTimeCharacteristic() {
-        timeReadCharacteristicHandler.let {
-            readCharacteristic(mcTimeCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-                .enqueue()
-        }
+    // ---------- Read methods ----------
+    fun readMicrostepsCharacteristic() {
+        readCharacteristic(microstepsCharacteristic)
+            .with { device, data -> microstepsHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
     }
 
-    fun getOnOffCharacteristic() {
-        onOffReadCharacteristicHandler.let {
-            readCharacteristic(mcOnOffCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-                .enqueue()
-        }
+    fun readRunCurrentCharacteristic() {
+        readCharacteristic(runCurrentCharacteristic)
+            .with { device, data -> runCurrentHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
     }
 
-    fun getManualBrightnessCharacteristic() {
-        manualBrightnessReadCharacteristicHandler.let {
-            readCharacteristic(mcManualBrightValueCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-                .enqueue()
-        }
+    fun readHoldCurrentCharacteristic() {
+        readCharacteristic(holdCurrentCharacteristic)
+            .with { device, data -> holdCurrentHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
     }
 
-    fun getAutoBrightnessCharacteristic() {
-        autoBrightnessReadCharacteristicHandler.let {
-            readCharacteristic(mcAutoBrightnessCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-                .enqueue()
-        }
+    fun readAxisUnitCharacteristic() {
+        readCharacteristic(axisUnitCharacteristic)
+            .with { device, data -> axisUnitHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
     }
 
-    fun getTurnOnAlarmCharacteristic() {
-        turnOnAlarmReadCharacteristicHandler.let {
-            readCharacteristic(mcTurnOnAlarmCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-                .enqueue()
-        }
+    fun readUnitsPerStepCharacteristic() {
+        readCharacteristic(unitsPerStepCharacteristic)
+            .with { device, data -> unitsPerStepHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
     }
 
-    fun getTurnOffAlarmCharacteristic() {
-        turnOffAlarmReadCharacteristicHandler.let {
-            readCharacteristic(mcTurnOffAlarmCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-                .enqueue()
-        }
+    fun readAxisSpeedCharacteristic() {
+        readCharacteristic(axisSpeedCharacteristic)
+            .with { device, data -> axisSpeedHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
     }
 
-    fun getAgingOffsetCharacteristic() {
-        agingOffsetReadCharacteristicHandler.let {
-            readCharacteristic(mcAgingOffsetCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-                .enqueue()
-        }
+    fun readAxisAccelCharacteristic() {
+        readCharacteristic(axisAccelCharacteristic)
+            .with { device, data -> axisAccelHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
     }
 
-    fun getRtcTemperatureCharacteristic() {
-        rtcTemperatureReadCharacteristicHandler.let {
-            readCharacteristic(mcRtcTemperatureCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-                .enqueue()
-        }
+    fun readVirtualLimitCharacteristic() {
+        readCharacteristic(virtualLimitCharacteristic)
+            .with { device, data -> virtualLimitHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
     }
 
-    fun getVersionCharacteristic() {
-        versionReadCharacteristicHandler.let {
-            readCharacteristic(mcVersionCharacteristic)
-                .with { device: BluetoothDevice?, data: Data? ->
-                    it.onReadCharacteristicCallback(
-                        device!!,
-                        data!!
-                    )
-                }
-                .enqueue()
-        }
+    fun readStealthChopCharacteristic() {
+        readCharacteristic(stealthChopCharacteristic)
+            .with { device, data -> stealthChopHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
     }
 
-    fun setTimeCharacteristic(time: AgoSliderTime) {
-        writeCharacteristic(
-            mcTimeCharacteristic,
-            time.toByteArray(),
-            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        ).enqueue()
+    fun readInvertDirCharacteristic() {
+        readCharacteristic(invertDirCharacteristic)
+            .with { device, data -> invertDirHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
     }
 
-    fun setOnOffCharacteristic(on: Boolean) {
-        writeCharacteristic(
-            mcOnOffCharacteristic,
-            byteArrayOf((if (on) CMD_CONTROL_LED_ON else CMD_CONTROL_LED_OFF).toByte()),
-            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        ).enqueue()
+    fun readVersionCharacteristic() {
+        readCharacteristic(versionCharacteristic)
+            .with { device, data -> versionHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
     }
 
-    fun setManualBrightnessCharacteristic(brightness: Byte) {
-        writeCharacteristic(
-            mcManualBrightValueCharacteristic,
-            byteArrayOf(brightness),
-            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        ).enqueue()
+    // ---------- Write methods (no response expected for most) ----------
+    fun writeMotEnCharacteristic(enabled: Boolean) {
+        val data = byteArrayOf(if (enabled) 1 else 0)
+        writeCharacteristic(motEnCharacteristic, data, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
     }
 
-    fun setAutoBrightnessCharacteristic(on: Boolean) {
-        writeCharacteristic(
-            mcAutoBrightnessCharacteristic,
-            byteArrayOf((if (on) CMD_CONTROL_LED_ON else CMD_CONTROL_LED_OFF).toByte()),
-            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        ).enqueue()
+    fun writeHomeCommand(homeX: Boolean, homeC: Boolean, homeB: Boolean) {
+        var cmd = 0
+        if (homeX) cmd = cmd or 0x10
+        if (homeC) cmd = cmd or 0x20
+        if (homeB) cmd = cmd or 0x40
+        writeCharacteristic(homeCharacteristic, byteArrayOf(cmd.toByte()), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
     }
 
-    fun setTurnOnAlarmCharacteristic(alarm: AgoSliderAlarm) {
-        writeCharacteristic(
-            mcTurnOnAlarmCharacteristic,
-            alarm.toByteArray(),
-            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        ).enqueue()
+    fun writeMoveCommand(x: Short, c: Short, b: Short) {
+        val buffer = java.nio.ByteBuffer.allocate(6).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        buffer.putShort(x)
+        buffer.putShort(c)
+        buffer.putShort(b)
+        writeCharacteristic(moveCharacteristic, buffer.array(), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
     }
 
-    fun setTurnOffAlarmCharacteristic(alarm: AgoSliderAlarm) {
-        writeCharacteristic(
-            mcTurnOffAlarmCharacteristic,
-            alarm.toByteArray(),
-            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        ).enqueue()
+    fun writeMicrostepsCharacteristic(x: Byte, c: Byte, b: Byte) {
+        writeCharacteristic(microstepsCharacteristic, byteArrayOf(x, c, b), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
     }
 
-    fun setAgingOffsetCharacteristic(agingOffset: Int) {
-        val lower8Bits = agingOffset and 0xFF
-        val data = if (lower8Bits and 0x80 != 0) {
-            (lower8Bits - 256).toByte()
-        } else {
-            lower8Bits.toByte()
-        }
-
-        writeCharacteristic(
-            mcAgingOffsetCharacteristic,
-            byteArrayOf(data),
-            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        ).enqueue()
+    fun writeRunCurrentCharacteristic(x: Int, c: Int, b: Int) {
+        val buffer = java.nio.ByteBuffer.allocate(6).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        buffer.putShort(x.toShort())
+        buffer.putShort(c.toShort())
+        buffer.putShort(b.toShort())
+        writeCharacteristic(runCurrentCharacteristic, buffer.array(), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
     }
 
-    fun setOtaControlCharacteristic(command: ByteArray, callback: (Boolean) -> Unit) {
-        writeCharacteristic(
-            mcOtaControlCharacteristic,
-            command,
-            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        ).with { device, data ->
-            callback(true)
-        }.fail { device, status ->
-            callback(false)
-        }.enqueue()
+    fun writeHoldCurrentCharacteristic(x: Int, c: Int, b: Int) {
+        val buffer = java.nio.ByteBuffer.allocate(6).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        buffer.putShort(x.toShort())
+        buffer.putShort(c.toShort())
+        buffer.putShort(b.toShort())
+        writeCharacteristic(holdCurrentCharacteristic, buffer.array(), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
     }
 
-    fun setOtaDataCharacteristic(data: ByteArray, callback: (Boolean) -> Unit) {
-        writeCharacteristic(
-            mcOtaDataCharacteristic,
-            data,
-            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT /* WRITE_TYPE_NO_RESPONSE */
-        ).with { device, data ->
-            callback(true)
-        }.fail { device, status ->
-            callback(false)
-        }.enqueue()
+    fun writeAxisUnitCharacteristic(xDeg: Boolean, cDeg: Boolean, bDeg: Boolean) {
+        var flags = 0
+        if (xDeg) flags = flags or 0x01
+        if (cDeg) flags = flags or 0x02
+        if (bDeg) flags = flags or 0x04
+        writeCharacteristic(axisUnitCharacteristic, byteArrayOf(flags.toByte()), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+    }
+
+    fun writeUnitsPerStepCharacteristic(x: Float, c: Float, b: Float) {
+        val buffer = java.nio.ByteBuffer.allocate(12).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        buffer.putFloat(x)
+        buffer.putFloat(c)
+        buffer.putFloat(b)
+        writeCharacteristic(unitsPerStepCharacteristic, buffer.array(), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+    }
+
+    fun writeAxisSpeedCharacteristic(x: Int, c: Int, b: Int) {
+        val buffer = java.nio.ByteBuffer.allocate(6).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        buffer.putShort(x.toShort())
+        buffer.putShort(c.toShort())
+        buffer.putShort(b.toShort())
+        writeCharacteristic(axisSpeedCharacteristic, buffer.array(), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+    }
+
+    fun writeAxisAccelCharacteristic(x: Int, c: Int, b: Int) {
+        val buffer = java.nio.ByteBuffer.allocate(6).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        buffer.putShort(x.toShort())
+        buffer.putShort(c.toShort())
+        buffer.putShort(b.toShort())
+        writeCharacteristic(axisAccelCharacteristic, buffer.array(), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+    }
+
+    fun writeVirtualLimitCharacteristic(xEn: Boolean, cEn: Boolean, bEn: Boolean) {
+        var flags = 0
+        if (xEn) flags = flags or 0x01
+        if (cEn) flags = flags or 0x02
+        if (bEn) flags = flags or 0x04
+        writeCharacteristic(virtualLimitCharacteristic, byteArrayOf(flags.toByte()), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+    }
+
+    fun writeStealthChopCharacteristic(xEn: Boolean, cEn: Boolean, bEn: Boolean) {
+        var flags = 0
+        if (xEn) flags = flags or 0x01
+        if (cEn) flags = flags or 0x02
+        if (bEn) flags = flags or 0x04
+        writeCharacteristic(stealthChopCharacteristic, byteArrayOf(flags.toByte()), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+    }
+
+    fun writeInvertDirCharacteristic(xInv: Boolean, cInv: Boolean, bInv: Boolean) {
+        var flags = 0
+        if (xInv) flags = flags or 0x01
+        if (cInv) flags = flags or 0x02
+        if (bInv) flags = flags or 0x04
+        writeCharacteristic(invertDirCharacteristic, byteArrayOf(flags.toByte()), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+    }
+
+    // OTA methods with callback
+    fun writeOtaControlCharacteristic(command: ByteArray, callback: (Boolean) -> Unit) {
+        writeCharacteristic(otaControlCharacteristic, command, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+            .with { _, _ -> callback(true) }
+            .fail { _, _ -> callback(false) }
+            .enqueue()
+    }
+
+    fun writeOtaDataCharacteristic(data: ByteArray, callback: (Boolean) -> Unit) {
+        writeCharacteristic(otaDataCharacteristic, data, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+            .with { _, _ -> callback(true) }
+            .fail { _, _ -> callback(false) }
+            .enqueue()
     }
 
     companion object {
-        // AGO Slider Service
+        // Service UUID
         val SERVICE_CONTROL_UUID: UUID = UUID.fromString("0000FE95-0000-1000-8000-00805F9B34FB")
 
-        // Manual control point to turn off/on the displaying of the time
-        // This manual operation has the lower priority than the alarm.
-        // Mode: Read, Write, Notify
-        val MC_TURN_ON_CONTROL_CHAR_UUID: UUID = UUID.fromString("2E126C52-37B8-4A7D-9688-28E33104C0E1")
-        const val CMD_CONTROL_LED_ON = 0x1
-        const val CMD_CONTROL_LED_OFF = 0x0
+        // Characteristic UUIDs (16-bit → 128-bit)
+        val MOT_EN_CHAR_UUID: UUID       = UUID.fromString("0000F001-0000-1000-8000-00805F9B34FB")
+        val HOME_CHAR_UUID: UUID         = UUID.fromString("0000F002-0000-1000-8000-00805F9B34FB")
+        val LIMIT_CHAR_UUID: UUID        = UUID.fromString("0000F003-0000-1000-8000-00805F9B34FB")
+        val MOVE_CHAR_UUID: UUID         = UUID.fromString("0000F004-0000-1000-8000-00805F9B34FB")
 
-        // Control point to switch between auto and manual brightness adjustment value
-        // Mode: Read, Write
-        val MC_AUTO_BRIGHT_ENABLE_CHAR_UUID: UUID = UUID.fromString("9B078810-99AB-4423-B3A8-6F2E86A09582")
+        val BATT_LEVEL_CHAR_UUID: UUID   = UUID.fromString("0000F020-0000-1000-8000-00805F9B34FB")
+        val PWR_INFO_CHAR_UUID: UUID     = UUID.fromString("0000F021-0000-1000-8000-00805F9B34FB")
+        val PWR_INFO_STR_CHAR_UUID: UUID = UUID.fromString("0000F022-0000-1000-8000-00805F9B34FB")
 
-        // Control point to setup manual brightness adjustment value
-        // Possible values are 0..15 (0 is not fully Off, just minimum value)
-        // Mode: Read, Write
-        val MC_MANUAL_BRIGHT_VAL_CHAR_UUID: UUID = UUID.fromString("117ED80D-AF6E-4E4D-B900-48F68725A7D3")
+        val MICROSTEPS_CHAR_UUID: UUID    = UUID.fromString("0000F030-0000-1000-8000-00805F9B34FB")
+        val RUN_CURRENT_CHAR_UUID: UUID   = UUID.fromString("0000F031-0000-1000-8000-00805F9B34FB")
+        val HOLD_CURRENT_CHAR_UUID: UUID  = UUID.fromString("0000F032-0000-1000-8000-00805F9B34FB")
+        val AXIS_UNIT_CHAR_UUID: UUID     = UUID.fromString("0000F033-0000-1000-8000-00805F9B34FB")
+        val UNITS_PER_STEP_CHAR_UUID: UUID = UUID.fromString("0000F034-0000-1000-8000-00805F9B34FB")
+        val AXIS_SPEED_CHAR_UUID: UUID    = UUID.fromString("0000F035-0000-1000-8000-00805F9B34FB")
+        val AXIS_ACCEL_CHAR_UUID: UUID    = UUID.fromString("0000F036-0000-1000-8000-00805F9B34FB")
+        val VIRTUAL_LIMIT_CHAR_UUID: UUID = UUID.fromString("0000F037-0000-1000-8000-00805F9B34FB")
+        val STEALTHCHOP_CHAR_UUID: UUID   = UUID.fromString("0000F038-0000-1000-8000-00805F9B34FB")
+        val INVERT_DIR_CHAR_UUID: UUID    = UUID.fromString("0000F039-0000-1000-8000-00805F9B34FB")
 
-        // Alarm timer to turn ON the clock at a specific time (for example, in the morning).
-        // This alarm event takes precedence over manual control.
-        // Mode: Read, Write
-        val MC_TURN_ON_ALARM_CHAR_UUID: UUID = UUID.fromString("6BDBD293-B623-411C-BB2A-F429EAF93CF1")
+        val VERSION_CHAR_UUID: UUID       = UUID.fromString("0000F090-0000-1000-8000-00805F9B34FB")
+        val OTA_CONTROL_CHAR_UUID: UUID   = UUID.fromString("0000F091-0000-1000-8000-00805F9B34FB")
+        val OTA_DATA_CHAR_UUID: UUID      = UUID.fromString("0000F092-0000-1000-8000-00805F9B34FB")
 
-        // Alarm timer to turn OFF the clock at a specific time (for example, at night).
-        // This alarm event takes precedence over manual control.
-        // Mode: Read, Write
-        val MC_TURN_OFF_ALARM_CHAR_UUID: UUID = UUID.fromString("84915734-BF86-46E7-B394-22E25B3F9007")
-
-        // MatrixClock time in UINT32 format: number of seconds since 1900 year.
-        // Time is in local time zone (not UTC, no time zone specified).
-        // Mode: Read, Write, Notify
-        val MC_TIME_CHAR_UUID: UUID = UUID.fromString("D5BD8D18-BD9A-4EF4-B206-8C78FFBE2774")
-
-        // MatrixClock time in formatted string "YYYY.MM.DD HH:mm:ss", example: "2023.12.31 09:05:42"
-        // Time is in local time zone (not UTC, no time zone specified).
-        // Mode: Read, Notify
-        // val MC_TIME_STR_CHAR_UUID: UUID = UUID.fromString("AA063B0F-DB36-47D0-8F19-A70FA97D86DF")
-
-        // Control point to setup aging offset value (8-bit signed integer)
-        // Mode: Read, Write
-        val MC_AGING_OFFSET_CHAR_UUID: UUID = UUID.fromString("F89E201D-434F-4675-B60E-2CF682200C50")
-
-        // RTC chip temperature formatted string "-XX.YY C" with the 0.25 degree precision
-        // Mode: Read
-        val MC_TEMPERATURE_CHAR_UUID: UUID = UUID.fromString("13BE1932-508D-4BEB-AFBC-2C21D1397920")
-
-        // BLE Device firmware version
-        // M Read, Notify
-        val MC_VERSION_CHAR_UUID: UUID = UUID.fromString("BEB5483E-36E1-4688-B7F5-EA07361B26A0")
-
-        // BLE Device OTA update process control point
-        // M Write
-        val MC_OTA_CONTROL_CHAR_UUID: UUID = UUID.fromString("BEB5483E-36E1-4688-B7F5-EA07361B26A1")
-
-        // BLE Device OTA update data upload point (to the secondary partition)
-        // M Write
-        val MC_OTA_DATA_CHAR_UUID: UUID = UUID.fromString("BEB5483E-36E1-4688-B7F5-EA07361B26A2")
-
-        // OTA Control Commands
+        // OTA commands
         const val OTA_CMD_START: Byte = 0x01
-        const val OTA_CMD_END: Byte = 0x02
+        const val OTA_CMD_END: Byte   = 0x02
         const val OTA_CMD_ABORT: Byte = 0x03
 
-        // MTU
+        // MTU size (max 517 for full support)
         const val BLE_MTU: Int = 517
     }
 }

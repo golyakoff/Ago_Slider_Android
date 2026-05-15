@@ -178,7 +178,7 @@ class FirmwareRepository @Inject constructor(
 
     suspend fun abortOta() {
         bluetoothService.exitOtaUpdateMode()
-        val success = bluetoothService.setOtaControlCharacteristic(
+        val success = bluetoothService.sendOtaControl(
             byteArrayOf(OTA_CMD_ABORT)
         )
         if (!success) {
@@ -244,7 +244,7 @@ class FirmwareRepository @Inject constructor(
         try {
             bluetoothService.enterOtaUpdateMode();
             val startCommand = createStartCommand(firmwareFile.length())
-            val startSuccess = bluetoothService.setOtaControlCharacteristic(startCommand)
+            val startSuccess = bluetoothService.sendOtaControl(startCommand)
             if (!startSuccess) throw IOException("Failed to start OTA process")
 
             inputStream = FileInputStream(firmwareFile)
@@ -253,7 +253,7 @@ class FirmwareRepository @Inject constructor(
             var bytesRead: Int
 
             while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                val dataSuccess = bluetoothService.setOtaDataCharacteristic(
+                val dataSuccess = bluetoothService.sendOtaData(
                     buffer.copyOf(bytesRead)
                 )
                 if (!dataSuccess) throw IOException("Failed to send OTA data packet")
@@ -264,11 +264,11 @@ class FirmwareRepository @Inject constructor(
                 delay(30)
             }
 
-            bluetoothService.setOtaControlCharacteristic(byteArrayOf(OTA_CMD_END))
+            bluetoothService.sendOtaControl(byteArrayOf(OTA_CMD_END))
 
         } catch (e: Exception) {
             try {
-                bluetoothService.setOtaControlCharacteristic(byteArrayOf(OTA_CMD_ABORT))
+                bluetoothService.sendOtaControl(byteArrayOf(OTA_CMD_ABORT))
             } catch (ignore: Exception) {
             }
             throw IOException("Firmware installation failed: ${e.message}", e)

@@ -4,10 +4,14 @@ import android.bluetooth.BluetoothDevice
 import kotlinx.coroutines.flow.MutableStateFlow
 import no.nordicsemi.android.ble.data.Data
 
-class OnOffReadCharacteristicHandler (
-    private var isOn: MutableStateFlow<Boolean>
-): ReadCharacteristicHandler {
+class MotEnReadCharacteristicHandler(
+    private val motorsEnabledFlow: MutableStateFlow<Boolean>
+) : ReadCharacteristicHandler {
+
     override fun onReadCharacteristicCallback(device: BluetoothDevice, data: Data) {
-        isOn.value = data.value!![0] > 0
+        val bytes = data.value ?: return
+        if (bytes.isEmpty()) return
+
+        motorsEnabledFlow.value = bytes[0] != 0.toByte()
     }
 }
