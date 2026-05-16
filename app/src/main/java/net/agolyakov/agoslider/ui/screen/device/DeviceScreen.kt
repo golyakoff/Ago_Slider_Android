@@ -5,14 +5,30 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.data.model.ble.HomeStatus
+import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 
+// ----------------------------------------------------------------------------
+// Public screen (uses Hilt ViewModel)
+// ----------------------------------------------------------------------------
 @Composable
 fun DeviceScreen(
     navController: NavHostController,
@@ -42,12 +58,98 @@ fun DeviceScreen(
     val powerInfo by viewModel.powerInfo.collectAsState()
     val batteryLevel by viewModel.batteryLevel.collectAsState()
     val firmwareVersion by viewModel.firmwareVersion.collectAsState()
+    val powerInfoString by viewModel.powerInfoString.collectAsState()
 
-    // Move command UI state
     val moveX by viewModel.moveX.collectAsState()
     val moveC by viewModel.moveC.collectAsState()
     val moveB by viewModel.moveB.collectAsState()
 
+    DeviceScreenContent(
+        device = device,
+        connectionState = connectionState,
+        firmwareVersion = firmwareVersion,
+        batteryLevel = batteryLevel,
+        motorsEnabled = motorsEnabled,
+        microsteps = microsteps,
+        runCurrent = runCurrent,
+        holdCurrent = holdCurrent,
+        axisUnit = axisUnit,
+        unitsPerStep = unitsPerStep,
+        axisSpeed = axisSpeed,
+        axisAccel = axisAccel,
+        virtualLimit = virtualLimit,
+        stealthChop = stealthChop,
+        invertDir = invertDir,
+        limitStatus = limitStatus,
+        homeStatus = homeStatus,
+        powerInfo = powerInfo,
+        powerInfoString = powerInfoString,
+        moveX = moveX,
+        moveC = moveC,
+        moveB = moveB,
+        onMotorsEnabledChange = viewModel::setMotorsEnabled,
+        onSendHomeCommand = viewModel::sendHomeCommand,
+        onSendMoveCommand = viewModel::sendMoveCommand,
+        onMoveXChange = viewModel::updateMoveX,
+        onMoveCChange = viewModel::updateMoveC,
+        onMoveBChange = viewModel::updateMoveB,
+        onMicrostepsChange = viewModel::setMicrosteps,
+        onRunCurrentChange = viewModel::setRunCurrent,
+        onHoldCurrentChange = viewModel::setHoldCurrent,
+        onAxisUnitChange = viewModel::setAxisUnit,
+        onUnitsPerStepChange = viewModel::setUnitsPerStep,
+        onAxisSpeedChange = viewModel::setAxisSpeed,
+        onAxisAccelChange = viewModel::setAxisAccel,
+        onVirtualLimitChange = viewModel::setVirtualLimit,
+        onStealthChopChange = viewModel::setStealthChop,
+        onInvertDirChange = viewModel::setInvertDir
+    )
+}
+
+// ----------------------------------------------------------------------------
+// Pure UI component (previewable)
+// ----------------------------------------------------------------------------
+@Composable
+fun DeviceScreenContent(
+    device: AgoSliderDevice?,
+    connectionState: Any,
+    firmwareVersion: String,
+    batteryLevel: Int,
+    motorsEnabled: Boolean,
+    microsteps: Triple<Int, Int, Int>,
+    runCurrent: Triple<Int, Int, Int>,
+    holdCurrent: Triple<Int, Int, Int>,
+    axisUnit: Triple<Boolean, Boolean, Boolean>,
+    unitsPerStep: Triple<Float, Float, Float>,
+    axisSpeed: Triple<Int, Int, Int>,
+    axisAccel: Triple<Int, Int, Int>,
+    virtualLimit: Triple<Boolean, Boolean, Boolean>,
+    stealthChop: Triple<Boolean, Boolean, Boolean>,
+    invertDir: Triple<Boolean, Boolean, Boolean>,
+    limitStatus: Triple<Boolean, Boolean, Boolean>,
+    homeStatus: HomeStatus,
+    powerInfo: Triple<Float, Float, Float>,
+    powerInfoString: String,
+    moveX: Int,
+    moveC: Int,
+    moveB: Int,
+    onMotorsEnabledChange: (Boolean) -> Unit,
+    onSendHomeCommand: (Boolean, Boolean, Boolean) -> Unit,
+    onSendMoveCommand: () -> Unit,
+    onMoveXChange: (Int) -> Unit,
+    onMoveCChange: (Int) -> Unit,
+    onMoveBChange: (Int) -> Unit,
+    onMicrostepsChange: (Int, Int, Int) -> Unit,
+    onRunCurrentChange: (Int, Int, Int) -> Unit,
+    onHoldCurrentChange: (Int, Int, Int) -> Unit,
+    onAxisUnitChange: (Boolean, Boolean, Boolean) -> Unit,
+    onUnitsPerStepChange: (Float, Float, Float) -> Unit,
+    onAxisSpeedChange: (Int, Int, Int) -> Unit,
+    onAxisAccelChange: (Int, Int, Int) -> Unit,
+    onVirtualLimitChange: (Boolean, Boolean, Boolean) -> Unit,
+    onStealthChopChange: (Boolean, Boolean, Boolean) -> Unit,
+    onInvertDirChange: (Boolean, Boolean, Boolean) -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -70,60 +172,67 @@ fun DeviceScreen(
         // Motor enable
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Motors enabled", modifier = Modifier.weight(1f))
-            Switch(checked = motorsEnabled, onCheckedChange = viewModel::setMotorsEnabled)
+            Switch(checked = motorsEnabled, onCheckedChange = onMotorsEnabledChange)
         }
 
-        // Home command (simple buttons)
+        // Home command
         Text("Homing", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { viewModel.sendHomeCommand(true, false, false) }) { Text("Home X") }
-            Button(onClick = { viewModel.sendHomeCommand(false, true, false) }) { Text("Home C") }
-            Button(onClick = { viewModel.sendHomeCommand(false, false, true) }) { Text("Home B") }
-            Button(onClick = { viewModel.sendHomeCommand(true, true, true) }) { Text("Home All") }
+            Button(onClick = { onSendHomeCommand(true, false, false) }) { Text("Home X") }
+            Button(onClick = { onSendHomeCommand(false, true, false) }) { Text("Home C") }
+            Button(onClick = { onSendHomeCommand(false, false, true) }) { Text("Home B") }
+            Button(onClick = { onSendHomeCommand(true, true, true) }) { Text("Home All") }
         }
         Text("Home status: requested=${homeStatus.requested}, homed=${homeStatus.homed}")
 
         // Move command
         Text("Move relative (steps)", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = moveX.toString(), onValueChange = { it.toIntOrNull()?.let(viewModel::updateMoveX) }, label = { Text("X") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(value = moveC.toString(), onValueChange = { it.toIntOrNull()?.let(viewModel::updateMoveC) }, label = { Text("C") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(value = moveB.toString(), onValueChange = { it.toIntOrNull()?.let(viewModel::updateMoveB) }, label = { Text("B") }, modifier = Modifier.weight(1f))
+            OutlinedTextField(
+                value = moveX.toString(),
+                onValueChange = { it.toIntOrNull()?.let(onMoveXChange) },
+                label = { Text("X") },
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = moveC.toString(),
+                onValueChange = { it.toIntOrNull()?.let(onMoveCChange) },
+                label = { Text("C") },
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = moveB.toString(),
+                onValueChange = { it.toIntOrNull()?.let(onMoveBChange) },
+                label = { Text("B") },
+                modifier = Modifier.weight(1f)
+            )
         }
-        Button(onClick = viewModel::sendMoveCommand) { Text("Move") }
+        Button(onClick = onSendMoveCommand) { Text("Move") }
 
         Divider()
 
-        // Microsteps
-        ConfigTriple("Microsteps (1,2,4,8,16,32,64,128,256)", microsteps, viewModel::setMicrosteps)
-        // Run current
-        ConfigTriple("Run current (mA)", runCurrent, viewModel::setRunCurrent)
-        // Hold current
-        ConfigTriple("Hold current (mA)", holdCurrent, viewModel::setHoldCurrent)
-        // Axis unit
-        BoolTriple("Axis unit (true=deg, false=mm)", axisUnit, viewModel::setAxisUnit)
-        // Units per step
-        FloatTriple("Units per step (mm/step or deg/step)", unitsPerStep, viewModel::setUnitsPerStep)
-        // Axis speed
-        ConfigTriple("Axis speed (steps/sec)", axisSpeed, viewModel::setAxisSpeed)
-        // Axis acceleration
-        ConfigTriple("Axis accel (steps/sec²)", axisAccel, viewModel::setAxisAccel)
-        // Virtual limit
-        BoolTriple("Virtual limit enabled", virtualLimit, viewModel::setVirtualLimit)
-        // StealthChop
-        BoolTriple("StealthChop enabled", stealthChop, viewModel::setStealthChop)
-        // Invert direction
-        BoolTriple("Invert direction", invertDir, viewModel::setInvertDir)
+        // Config sections
+        ConfigTriple("Microsteps (1,2,4,8,16,32,64,128,256)", microsteps, onMicrostepsChange)
+        ConfigTriple("Run current (mA)", runCurrent, onRunCurrentChange)
+        ConfigTriple("Hold current (mA)", holdCurrent, onHoldCurrentChange)
+        BoolTriple("Axis unit (true=deg, false=mm)", axisUnit, onAxisUnitChange)
+        FloatTriple("Units per step (mm/step or deg/step)", unitsPerStep, onUnitsPerStepChange)
+        ConfigTriple("Axis speed (steps/sec)", axisSpeed, onAxisSpeedChange)
+        ConfigTriple("Axis accel (steps/sec²)", axisAccel, onAxisAccelChange)
+        BoolTriple("Virtual limit enabled", virtualLimit, onVirtualLimitChange)
+        BoolTriple("StealthChop enabled", stealthChop, onStealthChopChange)
+        BoolTriple("Invert direction", invertDir, onInvertDirChange)
 
-        // Limit status (read-only)
+        // Read-only status
         Text("Limit switches: X=${limitStatus.first}, C=${limitStatus.second}, B=${limitStatus.third}")
-
-        // Power info
         Text("Power: ${powerInfo.first}V, ${powerInfo.second}A, ${powerInfo.third}W")
-        Text("Power string: ${viewModel.powerInfoString.collectAsState().value}")
+        Text("Power string: $powerInfoString")
     }
 }
 
+// ----------------------------------------------------------------------------
+// Reusable configuration components
+// ----------------------------------------------------------------------------
 @Composable
 fun ConfigTriple(
     title: String,
@@ -200,5 +309,67 @@ fun BoolTriple(
             }
             Button(onClick = { onValueChange(x, c, b) }) { Text("Set") }
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Previews
+// ----------------------------------------------------------------------------
+@Preview(name = "Light Theme", showBackground = true)
+@Composable
+fun DeviceScreenLightPreview() {
+    AgoSliderTheme(darkTheme = false) {
+        DeviceScreenContent(
+            device = AgoSliderDevice(
+                deviceName = "AGO Slider",
+                macAddress = "AA:BB:CC:DD:EE:FF",
+                friendlyName = "Test Device"
+            ),
+            connectionState = "Connected",
+            firmwareVersion = "v1.0.0",
+            batteryLevel = 200,
+            motorsEnabled = true,
+            microsteps = Triple(16, 16, 16),
+            runCurrent = Triple(900, 700, 900),
+            holdCurrent = Triple(450, 350, 450),
+            axisUnit = Triple(false, true, true),
+            unitsPerStep = Triple(0.19195f, 0.2125f, 0.29268f),
+            axisSpeed = Triple(1000, 1000, 1000),
+            axisAccel = Triple(1000, 1000, 1000),
+            virtualLimit = Triple(true, false, true),
+            stealthChop = Triple(true, true, true),
+            invertDir = Triple(false, false, false),
+            limitStatus = Triple(false, false, false),
+            homeStatus = HomeStatus(Triple(false, false, false), Triple(false, false, false)),
+            powerInfo = Triple(21.48f, 0.082f, 1.76f),
+            powerInfoString = "21.48V 0.082A 1.76W",
+            moveX = 0,
+            moveC = 0,
+            moveB = 0,
+            onMotorsEnabledChange = {},
+            onSendHomeCommand = { _, _, _ -> },
+            onSendMoveCommand = {},
+            onMoveXChange = {},
+            onMoveCChange = {},
+            onMoveBChange = {},
+            onMicrostepsChange = { _, _, _ -> },
+            onRunCurrentChange = { _, _, _ -> },
+            onHoldCurrentChange = { _, _, _ -> },
+            onAxisUnitChange = { _, _, _ -> },
+            onUnitsPerStepChange = { _, _, _ -> },
+            onAxisSpeedChange = { _, _, _ -> },
+            onAxisAccelChange = { _, _, _ -> },
+            onVirtualLimitChange = { _, _, _ -> },
+            onStealthChopChange = { _, _, _ -> },
+            onInvertDirChange = { _, _, _ -> }
+        )
+    }
+}
+
+@Preview(name = "Dark Theme", showBackground = true)
+@Composable
+fun DeviceScreenDarkPreview() {
+    AgoSliderTheme(darkTheme = true) {
+        DeviceScreenLightPreview() // Reuse same content, theme handles dark
     }
 }

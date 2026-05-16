@@ -11,6 +11,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.data.model.ble.ConnectionState
+import net.agolyakov.agoslider.data.model.ble.HomeStatus
 import net.agolyakov.agoslider.service.bluetooth.handlers.*
 import no.nordicsemi.android.ble.observer.ConnectionObserver
 import javax.inject.Inject

@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.bundles.networking)
     implementation(libs.androidx.ui.text)
     implementation(libs.androidx.ui.text.google.fonts)
+    implementation(libs.androidx.runtime)
     kapt(libs.hilt.compiler)
     implementation(libs.nordic.ble)
     testImplementation(libs.junit)

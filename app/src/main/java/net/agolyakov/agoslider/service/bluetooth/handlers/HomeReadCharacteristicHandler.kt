@@ -2,12 +2,8 @@ package net.agolyakov.agoslider.service.bluetooth.handlers
 
 import android.bluetooth.BluetoothDevice
 import kotlinx.coroutines.flow.MutableStateFlow
+import net.agolyakov.agoslider.data.model.ble.HomeStatus
 import no.nordicsemi.android.ble.data.Data
-
-data class HomeStatus(
-    val requested: Triple<Boolean, Boolean, Boolean>,
-    val homed: Triple<Boolean, Boolean, Boolean>
-)
 
 class HomeReadCharacteristicHandler(
     private val homeFlow: MutableStateFlow<HomeStatus>
