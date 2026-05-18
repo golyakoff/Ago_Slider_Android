@@ -265,29 +265,32 @@ fun DeviceScreenContent(
         }
 
         // Move command
-        Text("Move relative (steps)", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = moveX.toString(),
-                onValueChange = { it.toIntOrNull()?.let(onMoveXChange) },
-                label = { Text("X") },
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = moveC.toString(),
-                onValueChange = { it.toIntOrNull()?.let(onMoveCChange) },
-                label = { Text("C") },
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = moveB.toString(),
-                onValueChange = { it.toIntOrNull()?.let(onMoveBChange) },
-                label = { Text("B") },
-                modifier = Modifier.weight(1f)
-            )
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text("Move relative (steps)", style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = moveX.toString(),
+                        onValueChange = { it.toIntOrNull()?.let(onMoveXChange) },
+                        label = { Text("X") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = moveC.toString(),
+                        onValueChange = { it.toIntOrNull()?.let(onMoveCChange) },
+                        label = { Text("C") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = moveB.toString(),
+                        onValueChange = { it.toIntOrNull()?.let(onMoveBChange) },
+                        label = { Text("B") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Button(onClick = onSendMoveCommand) { Text("Move") }
+            }
         }
-        Button(onClick = onSendMoveCommand) { Text("Move") }
-
         Divider()
 
         // Config sections
@@ -394,10 +397,9 @@ fun BoolTriple(
 // ----------------------------------------------------------------------------
 // Previews
 // ----------------------------------------------------------------------------
-@Preview(name = "Light Theme", showBackground = true, heightDp = 2000)
 @Composable
-fun DeviceScreenLightPreview() {
-    AgoSliderTheme(darkTheme = false) {
+fun DeviceScreenPreview(darkTheme: Boolean) {
+    AgoSliderTheme(darkTheme) {
         DeviceScreenContent(
             device = AgoSliderDevice(
                 deviceName = "AGO Slider",
@@ -445,10 +447,14 @@ fun DeviceScreenLightPreview() {
     }
 }
 
+@Preview(name = "Light Theme", showBackground = true, heightDp = 2000)
+@Composable
+fun DeviceScreenLightPreview() {
+    DeviceScreenPreview(darkTheme = false)
+}
+
 @Preview(name = "Dark Theme", showBackground = true, heightDp = 2000)
 @Composable
 fun DeviceScreenDarkPreview() {
-    AgoSliderTheme(darkTheme = true) {
-        DeviceScreenLightPreview() // Reuse same content, theme handles dark
-    }
+    DeviceScreenPreview(darkTheme = true)
 }
