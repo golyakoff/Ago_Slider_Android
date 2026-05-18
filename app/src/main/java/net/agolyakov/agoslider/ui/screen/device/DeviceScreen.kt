@@ -25,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.text.font.FontWeight
+import net.agolyakov.agoslider.data.model.ble.ConnectionState
 
 // ----------------------------------------------------------------------------
 // Public screen (uses Hilt ViewModel)
@@ -64,9 +66,19 @@ fun DeviceScreen(
     val moveC by viewModel.moveC.collectAsState()
     val moveB by viewModel.moveB.collectAsState()
 
+    val connectionStateString = when (connectionState) {
+        is ConnectionState.Connecting -> "Connecting"
+        is ConnectionState.Connected -> "Connected"
+        is ConnectionState.Ready -> "Ready"
+        is ConnectionState.Disconnecting -> "Disconnecting"
+        is ConnectionState.Disconnected -> "Disconnected"
+        is ConnectionState.Error -> "Error: ${(connectionState as ConnectionState.Error).message}"
+        else -> connectionState.toString()
+    }
+
     DeviceScreenContent(
         device = device,
-        connectionState = connectionState,
+        connectionStateString = connectionStateString,
         firmwareVersion = firmwareVersion,
         batteryLevel = batteryLevel,
         motorsEnabled = motorsEnabled,
@@ -112,7 +124,7 @@ fun DeviceScreen(
 @Composable
 fun DeviceScreenContent(
     device: AgoSliderDevice?,
-    connectionState: Any,
+    connectionStateString: String,
     firmwareVersion: String,
     batteryLevel: Int,
     motorsEnabled: Boolean,
@@ -164,7 +176,7 @@ fun DeviceScreenContent(
         )
         Text(text = "MAC: ${device?.macAddress ?: "N/A"}")
         Text(text = "Firmware: $firmwareVersion")
-        Text(text = "Connection state: $connectionState")
+        Text(text = "Connection state: $connectionStateString")
         Text(text = "Battery level: ${batteryLevel * 100 / 255}% ($batteryLevel/255)")
 
         Divider()
@@ -177,13 +189,80 @@ fun DeviceScreenContent(
 
         // Home command
         Text("Homing", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onSendHomeCommand(true, false, false) }) { Text("Home X") }
-            Button(onClick = { onSendHomeCommand(false, true, false) }) { Text("Home C") }
-            Button(onClick = { onSendHomeCommand(false, false, true) }) { Text("Home B") }
-            Button(onClick = { onSendHomeCommand(true, true, true) }) { Text("Home All") }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = { onSendHomeCommand(true, false, false) },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Home X")
+            }
+            Button(
+                onClick = { onSendHomeCommand(false, true, false) },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Home C")
+            }
+            Button(
+                onClick = { onSendHomeCommand(false, false, true) },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Home B")
+            }
         }
-        Text("Home status: requested=${homeStatus.requested}, homed=${homeStatus.homed}")
+        Button(
+            onClick = { onSendHomeCommand(true, true, true) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Home All")
+        }
+        // Home status table
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Column(modifier = Modifier.padding(8.dp)) {
+                // Row 1: Home Requested
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Home Requested:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "X=${if (homeStatus.requested.first) "YES" else "NO"}, " +
+                                "C=${if (homeStatus.requested.second) "YES" else "NO"}, " +
+                                "B=${if (homeStatus.requested.third) "YES" else "NO"}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                // Row 2: Homed Status
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Homed Status:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "X=${if (homeStatus.homed.first) "YES" else "NO"}, " +
+                                "C=${if (homeStatus.homed.second) "YES" else "NO"}, " +
+                                "B=${if (homeStatus.homed.third) "YES" else "NO"}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
 
         // Move command
         Text("Move relative (steps)", style = MaterialTheme.typography.titleMedium)
@@ -315,7 +394,7 @@ fun BoolTriple(
 // ----------------------------------------------------------------------------
 // Previews
 // ----------------------------------------------------------------------------
-@Preview(name = "Light Theme", showBackground = true)
+@Preview(name = "Light Theme", showBackground = true, heightDp = 2000)
 @Composable
 fun DeviceScreenLightPreview() {
     AgoSliderTheme(darkTheme = false) {
@@ -325,7 +404,7 @@ fun DeviceScreenLightPreview() {
                 macAddress = "AA:BB:CC:DD:EE:FF",
                 friendlyName = "Test Device"
             ),
-            connectionState = "Connected",
+            connectionStateString = "Connected",
             firmwareVersion = "v1.0.0",
             batteryLevel = 200,
             motorsEnabled = true,
@@ -366,7 +445,7 @@ fun DeviceScreenLightPreview() {
     }
 }
 
-@Preview(name = "Dark Theme", showBackground = true)
+@Preview(name = "Dark Theme", showBackground = true, heightDp = 2000)
 @Composable
 fun DeviceScreenDarkPreview() {
     AgoSliderTheme(darkTheme = true) {

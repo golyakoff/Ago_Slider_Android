@@ -173,6 +173,12 @@ class AgoSliderManager(
     }
 
     // ---------- Read methods ----------
+    fun readMotEnCharacteristic() {
+        readCharacteristic(motEnCharacteristic)
+            .with { device, data -> motEnHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
+    }
+
     fun readMicrostepsCharacteristic() {
         readCharacteristic(microstepsCharacteristic)
             .with { device, data -> microstepsHandler.onReadCharacteristicCallback(device, data) }

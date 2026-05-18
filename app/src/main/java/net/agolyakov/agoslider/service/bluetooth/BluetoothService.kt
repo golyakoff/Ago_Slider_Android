@@ -252,6 +252,7 @@ class BluetoothService @Inject constructor(
 
     fun setMotorsEnabled(enabled: Boolean) {
         bleManager.writeMotEnCharacteristic(enabled)
+        bleManager.readMotEnCharacteristic()
     }
 
     fun sendHomeCommand(homeX: Boolean, homeC: Boolean, homeB: Boolean) {
@@ -266,14 +267,18 @@ class BluetoothService @Inject constructor(
         // Convert Int to Byte according to encoding: 256 -> 0, otherwise the value itself
         fun encode(value: Int): Byte = if (value == 256) 0 else value.toByte()
         bleManager.writeMicrostepsCharacteristic(encode(x), encode(c), encode(b))
+        bleManager.readMicrostepsCharacteristic()
     }
 
     fun setRunCurrent(x: Int, c: Int, b: Int) {
         bleManager.writeRunCurrentCharacteristic(x, c, b)
+        bleManager.readRunCurrentCharacteristic()
+        bleManager.readHoldCurrentCharacteristic()
     }
 
     fun setHoldCurrent(x: Int, c: Int, b: Int) {
         bleManager.writeHoldCurrentCharacteristic(x, c, b)
+        bleManager.readHoldCurrentCharacteristic()
     }
 
     fun setAxisUnit(xDeg: Boolean, cDeg: Boolean, bDeg: Boolean) {
