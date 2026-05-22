@@ -2,12 +2,10 @@ package net.agolyakov.agoslider.ui.screen.device
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.service.bluetooth.BluetoothService
 import javax.inject.Inject
@@ -20,7 +18,7 @@ class DeviceViewModel @Inject constructor(
 
     // Connection state
     val connectionState = bluetoothService.connectionState
-    val currentDevice = bluetoothService.currentDevice
+    //val currentDevice = bluetoothService.currentDevice
 
     // Axis configuration StateFlows from service
     val motorsEnabled = bluetoothService.motorsEnabled
@@ -56,7 +54,7 @@ class DeviceViewModel @Inject constructor(
     fun updateMoveB(value: Int) { _moveB.value = value }
 
     fun sendMoveCommand() {
-        bluetoothService.sendMoveCommand(_moveX.value.toShort(), _moveC.value.toShort(), _moveB.value.toShort())
+        bluetoothService.sendMoveCommand(_moveX.value, _moveC.value, _moveB.value)
     }
 
     fun setMotorsEnabled(enabled: Boolean) {

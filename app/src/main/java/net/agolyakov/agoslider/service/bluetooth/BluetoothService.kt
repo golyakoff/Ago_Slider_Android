@@ -259,7 +259,7 @@ class BluetoothService @Inject constructor(
         bleManager.writeHomeCommand(homeX, homeC, homeB)
     }
 
-    fun sendMoveCommand(x: Short, c: Short, b: Short) {
+    fun sendMoveCommand(x: Int, c: Int, b: Int) {
         bleManager.writeMoveCommand(x, c, b)
     }
 

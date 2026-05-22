@@ -259,11 +259,11 @@ class AgoSliderManager(
         writeCharacteristic(homeCharacteristic, byteArrayOf(cmd.toByte()), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
     }
 
-    fun writeMoveCommand(x: Short, c: Short, b: Short) {
-        val buffer = java.nio.ByteBuffer.allocate(6).order(java.nio.ByteOrder.LITTLE_ENDIAN)
-        buffer.putShort(x)
-        buffer.putShort(c)
-        buffer.putShort(b)
+    fun writeMoveCommand(x: Int, c: Int, b: Int) {
+        val buffer = java.nio.ByteBuffer.allocate(12).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        buffer.putInt(x)
+        buffer.putInt(c)
+        buffer.putInt(b)
         writeCharacteristic(moveCharacteristic, buffer.array(), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
     }
 
