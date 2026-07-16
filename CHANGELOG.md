@@ -1,3 +1,12 @@
+# Release 0.1.3
+
+- Fixed: rotating the screen (or switching the in-app language) no longer drops the BLE
+  connection — a firmware OTA update now survives the rotation instead of freezing.
+- Every card on the Settings / Service / Motion tabs got an icon in its header.
+- Simpler setting titles ("Virtual limit", "StealthChop", "Units per step"), and the
+  units-per-step fields show an mm/step or deg/step caption per axis, following the
+  axis-unit choice live.
+
 # Release 0.1.2
 
 - UI switched to English with a Russian translation; the in-app language follows the
