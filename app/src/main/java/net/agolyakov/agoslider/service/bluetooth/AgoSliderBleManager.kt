@@ -179,6 +179,24 @@ class AgoSliderManager(
             .enqueue()
     }
 
+    fun readPowerInfoCharacteristic() {
+        readCharacteristic(pwrInfoCharacteristic)
+            .with { device, data -> powerInfoHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
+    }
+
+    fun readPowerInfoStringCharacteristic() {
+        readCharacteristic(pwrInfoStrCharacteristic)
+            .with { device, data -> powerInfoStringHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
+    }
+
+    fun readLimitCharacteristic() {
+        readCharacteristic(limitCharacteristic)
+            .with { device, data -> limitHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
+    }
+
     fun readBattLevelCharacteristic() {
         readCharacteristic(battLevelCharacteristic)
             .with { device, data -> batteryLevelHandler.onReadCharacteristicCallback(device, data) }
