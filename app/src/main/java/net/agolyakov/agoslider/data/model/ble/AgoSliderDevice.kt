@@ -5,9 +5,9 @@ import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class AgoSliderDevice(
-    val deviceName: String,             // Имя устройства, заданное производителем
-    val macAddress: String,             // MAC-адрес
-    val friendlyName: String? = null,   // Опционально заданное пользователем имя
+    val deviceName: String,             // Device name assigned by the manufacturer
+    val macAddress: String,             // MAC address
+    val friendlyName: String? = null,   // Optional user-assigned name
 ) : Parcelable {
     fun getDisplayName(): String {
         return friendlyName ?: deviceName

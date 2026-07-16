@@ -28,7 +28,7 @@ object MainModule {
     private val owner = "golyakoff"
     private val repo = "Matrix_Clock_ESP32"
 
-    // TODO: Заменить на получение из безопасного хранилища
+    // TODO: Replace with retrieval from secure storage
     private val token = "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"
 
     // Region: Context Providers

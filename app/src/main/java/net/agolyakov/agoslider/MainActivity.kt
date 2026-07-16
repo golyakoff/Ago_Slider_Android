@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Включение ScrollCapture для скриншотов с прокруткой (Android 12+)
+        // Enable ScrollCapture for scrolling screenshots (Android 12+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             enableScrollCapture()
         }
@@ -76,7 +76,7 @@ fun MainContent() {
         val navController = rememberNavController()
         val context = LocalContext.current
 
-        // Launcher для включения Bluetooth
+        // Launcher for enabling Bluetooth
         val enableBluetoothLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult()
         ) { result ->
@@ -94,7 +94,7 @@ fun MainContent() {
                 listOf(
                     Manifest.permission.ACCESS_FINE_LOCATION)
 
-        // Запрос разрешений
+        // Request permissions
         MyRequestPermission(permissions) { granted ->
             if (granted) {
                 enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
@@ -103,7 +103,7 @@ fun MainContent() {
             }
         }
 
-        // Навигация
+        // Navigation
         SetupNavGraph(navController = navController)
     }
 }

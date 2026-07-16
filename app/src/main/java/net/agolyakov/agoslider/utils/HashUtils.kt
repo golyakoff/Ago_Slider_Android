@@ -1,4 +1,4 @@
-package com.yourcompany.yourapp.utils // или com.yourcompany.yourapp.data.utils
+package com.yourcompany.yourapp.utils // or com.yourcompany.yourapp.data.utils
 
 import java.io.File
 import java.io.InputStream

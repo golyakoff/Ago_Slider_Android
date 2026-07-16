@@ -100,11 +100,11 @@ class FirmwareRepository @Inject constructor(
         onProgress: (Float, String) -> Unit
     ): UpdateResult = withContext(Dispatchers.IO) {
         try {
-            // 1. Проверяем текущую версию
+            // 1. check existing version
             onProgress(0f, "Получение текущей версии...")
             val currentVersion = getCurrentVersion()
 
-            // 2. Проверяем обновления
+            // 2. check for updates available
             onProgress(1f, "Проверка наличия обновлений...")
             val updateState = checkForUpdates(includePreReleases)
             if (updateState is UpdateState.NoUpdate) {
@@ -113,7 +113,7 @@ class FirmwareRepository @Inject constructor(
 
             val release = (updateState as UpdateState.UpdateAvailable).release
 
-            // 3. Скачиваем прошивку
+            // 3. download new firmware
             onProgress(2f, "Скачивание прошивки...")
             val downloadResult = downloadFirmware(release) { downloadProgress ->
                 val overallProgress = 2f + downloadProgress * 0.03f
@@ -126,7 +126,7 @@ class FirmwareRepository @Inject constructor(
 
             val firmwareFile = (downloadResult as UpdateState.ReadyToInstall).file
 
-            // 4. Устанавливаем прошивку
+            // 4. install new firmware
             onProgress(5f, "Установка обновления...")
             val installResult = installFirmware(firmwareFile) { installProgress ->
                 val overallProgress = 5f + installProgress * 0.94f
@@ -137,7 +137,7 @@ class FirmwareRepository @Inject constructor(
                 return@withContext UpdateResult.Error(installResult.message)
             }
 
-            // 5. Проверяем обновление
+            // 5. validate installed firmware and reboot
             onProgress(99f, "Перезагрузка устройства...")
             bluetoothService.disconnect()
 

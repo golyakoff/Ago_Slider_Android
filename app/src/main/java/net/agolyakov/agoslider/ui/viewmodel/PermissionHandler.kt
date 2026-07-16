@@ -21,7 +21,7 @@ fun MyRequestPermission(
         onPermissionsResult(allGranted)
     }
 
-    // Проверка и автозапуск
+    // Check permissions and auto-launch the request if missing
     LaunchedEffect(Unit) {
         val allGranted = permissions.all {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
