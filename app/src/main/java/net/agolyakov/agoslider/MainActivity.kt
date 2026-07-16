@@ -66,7 +66,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        if (!bluetoothService.shouldPreserveConnection()) {
+        // isChangingConfigurations: a rotation or language switch pauses the activity only to
+        // recreate it — that must not drop the session (or an OTA transfer riding on it)
+        if (!isChangingConfigurations && !bluetoothService.shouldPreserveConnection()) {
             bluetoothService.disconnect()
         }
     }
@@ -78,7 +80,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        bluetoothService.disconnect()
+        // A configuration change (rotation, in-app language switch) destroys and recreates
+        // the activity — the BLE session, and any OTA transfer running over it, must survive
+        // that. Only a real exit tears the connection down.
+        if (isFinishing) {
+            bluetoothService.disconnect()
+        }
     }
 }
 
