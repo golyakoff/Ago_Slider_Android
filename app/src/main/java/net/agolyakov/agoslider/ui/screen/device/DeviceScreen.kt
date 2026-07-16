@@ -38,6 +38,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.delay
 import net.agolyakov.agoslider.R
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.data.model.ble.ConnectionState
@@ -71,19 +72,6 @@ fun DeviceScreen(
         viewModel.connectToDevice(device)
     }
 
-    // Name the device in the action bar instead of spending a content row on it
-    val context = LocalContext.current
-    val deviceName = device?.getDisplayName()
-    DisposableEffect(deviceName) {
-        val activity = context as? Activity
-        if (deviceName != null) {
-            activity?.title = context.getString(R.string.device_title, deviceName)
-        }
-        onDispose {
-            activity?.title = context.getString(R.string.app_full_name)
-        }
-    }
-
     // Collect state flows
     val connectionState by viewModel.connectionState.collectAsState()
     val motorsEnabled by viewModel.motorsEnabled.collectAsState()
@@ -107,6 +95,32 @@ fun DeviceScreen(
     val moveX by viewModel.moveX.collectAsState()
     val moveC by viewModel.moveC.collectAsState()
     val moveB by viewModel.moveB.collectAsState()
+
+    // The slider drops the link when it reboots (e.g. right after an OTA update finishes);
+    // while this screen is visible, any lost connection is re-established automatically.
+    LaunchedEffect(device, connectionState) {
+        if (device != null &&
+            (connectionState is ConnectionState.Disconnected || connectionState is ConnectionState.Error)
+        ) {
+            delay(1000)
+            viewModel.connectToDevice(device)
+        }
+    }
+
+    // Name the device in the action bar instead of spending a content row on it, with the
+    // firmware version appended once it is known: "My slider v0.1.3"
+    val context = LocalContext.current
+    val deviceName = device?.getDisplayName()
+    DisposableEffect(deviceName, firmwareVersion) {
+        val activity = context as? Activity
+        if (deviceName != null) {
+            val version = firmwareVersion.takeIf { it.isNotBlank() && it != "Unknown" }
+            activity?.title = listOfNotNull(deviceName, version).joinToString(" ")
+        }
+        onDispose {
+            activity?.title = context.getString(R.string.app_name)
+        }
+    }
 
     val connectionStateString = when (val state = connectionState) {
         is ConnectionState.Connecting -> stringResource(R.string.state_connecting)
@@ -227,7 +241,6 @@ fun DeviceScreenContent(
         ) {
             DeviceHeader(
                 connectionStateString = connectionStateString,
-                firmwareVersion = firmwareVersion,
                 batteryLevel = batteryLevel,
                 motorsEnabled = motorsEnabled,
                 onMotorsEnabledChange = onMotorsEnabledChange
@@ -291,24 +304,18 @@ fun DeviceScreenContent(
 @Composable
 private fun DeviceHeader(
     connectionStateString: String,
-    firmwareVersion: String,
     batteryLevel: Int,
     motorsEnabled: Boolean,
     onMotorsEnabledChange: (Boolean) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        // The device name is not repeated here — it is in the action bar title
-        // Three equal columns, so a field changing width (connection state, version)
-        // cannot shift the others sideways
+        // The device name and firmware version are not repeated here — they are in the
+        // action bar title. Two equal columns, so a field changing width (connection
+        // state) cannot shift the other sideways
         Row(modifier = Modifier.fillMaxWidth()) {
             HeaderStatusField(
                 text = connectionStateString,
                 textAlign = TextAlign.Start,
-                modifier = Modifier.weight(1f)
-            )
-            HeaderStatusField(
-                text = stringResource(R.string.device_firmware, firmwareVersion),
-                textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f)
             )
             HeaderStatusField(
