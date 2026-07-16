@@ -8,8 +8,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import net.agolyakov.agoslider.R
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
 
 // ----------------------------------------------------------------------------
@@ -46,18 +48,47 @@ fun SettingsTabContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ConfigTriple("Microsteps (1,2,4,8,16,32,64,128,256)", microsteps, onMicrostepsChange)
-        ConfigTriple("Run current (mA)", runCurrent, onRunCurrentChange)
-        ConfigTriple("Hold current (mA)", holdCurrent, onHoldCurrentChange)
-        BoolTriple("Axis unit (true=deg, false=mm)", axisUnit, onAxisUnitChange)
-        FloatTriple("Units per step (mm/step or deg/step)", unitsPerStep, onUnitsPerStepChange)
-        ConfigTriple("Axis speed (steps/sec)", axisSpeed, onAxisSpeedChange)
-        ConfigTriple("Axis accel (steps/sec²)", axisAccel, onAxisAccelChange)
-        BoolTriple("Virtual limit enabled", virtualLimit, onVirtualLimitChange)
-        BoolTriple("StealthChop enabled", stealthChop, onStealthChopChange)
-        BoolTriple("Invert direction", invertDir, onInvertDirChange)
+        IntSliderTriple(
+            title = stringResource(R.string.settings_run_current),
+            values = runCurrent,
+            range = CURRENT_RANGE,
+            step = CURRENT_STEP,
+            onValueChange = onRunCurrentChange
+        )
+        IntSliderTriple(
+            title = stringResource(R.string.settings_hold_current),
+            values = holdCurrent,
+            range = CURRENT_RANGE,
+            step = CURRENT_STEP,
+            onValueChange = onHoldCurrentChange
+        )
+        IntDropdownTriple(
+            title = stringResource(R.string.settings_microsteps),
+            values = microsteps,
+            options = MICROSTEP_OPTIONS,
+            onValueChange = onMicrostepsChange
+        )
+        BoolTriple(stringResource(R.string.settings_invert_dir), invertDir, onInvertDirChange)
+        AxisUnitTriple(stringResource(R.string.settings_axis_unit), axisUnit, onAxisUnitChange)
+        FloatTriple(stringResource(R.string.settings_units_per_step), unitsPerStep, onUnitsPerStepChange)
+        IntSliderTriple(
+            title = stringResource(R.string.settings_axis_accel),
+            values = axisAccel,
+            range = ACCEL_RANGE,
+            step = ACCEL_STEP,
+            onValueChange = onAxisAccelChange
+        )
+        ConfigTriple(stringResource(R.string.settings_axis_speed), axisSpeed, onAxisSpeedChange)
+        BoolTriple(stringResource(R.string.settings_virtual_limit), virtualLimit, onVirtualLimitChange)
+        BoolTriple(stringResource(R.string.settings_stealthchop), stealthChop, onStealthChopChange)
     }
 }
+
+private val MICROSTEP_OPTIONS = listOf(1, 2, 4, 8, 16, 32, 64, 128, 256)
+private val CURRENT_RANGE = 200..1200
+private const val CURRENT_STEP = 100
+private val ACCEL_RANGE = 100..3000
+private const val ACCEL_STEP = 100
 
 // ----------------------------------------------------------------------------
 // Previews
