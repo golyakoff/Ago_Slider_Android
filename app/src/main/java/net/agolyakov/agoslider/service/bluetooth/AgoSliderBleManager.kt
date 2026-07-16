@@ -179,6 +179,12 @@ class AgoSliderManager(
             .enqueue()
     }
 
+    fun readBattLevelCharacteristic() {
+        readCharacteristic(battLevelCharacteristic)
+            .with { device, data -> batteryLevelHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
+    }
+
     fun readMicrostepsCharacteristic() {
         readCharacteristic(microstepsCharacteristic)
             .with { device, data -> microstepsHandler.onReadCharacteristicCallback(device, data) }

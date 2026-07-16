@@ -245,6 +245,9 @@ class BluetoothService @Inject constructor(
         bleManager.readStealthChopCharacteristic()
         bleManager.readInvertDirCharacteristic()
         bleManager.readVersionCharacteristic()
+        // The device notifies the battery level only when it changes, which may not happen for
+        // a long time after connecting, so read the current level once.
+        bleManager.readBattLevelCharacteristic()
         // Notifications for MOT_EN, HOME, LIMIT, BATT, POWER, VERSION are set up in initialize()
     }
 

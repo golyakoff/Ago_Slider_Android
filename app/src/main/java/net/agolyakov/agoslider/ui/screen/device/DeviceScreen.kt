@@ -1,5 +1,6 @@
 package net.agolyakov.agoslider.ui.screen.device
 
+import android.app.Activity
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,7 +30,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -66,6 +71,19 @@ fun DeviceScreen(
         viewModel.connectToDevice(device)
     }
 
+    // Name the device in the action bar instead of spending a content row on it
+    val context = LocalContext.current
+    val deviceName = device?.getDisplayName()
+    DisposableEffect(deviceName) {
+        val activity = context as? Activity
+        if (deviceName != null) {
+            activity?.title = context.getString(R.string.device_title, deviceName)
+        }
+        onDispose {
+            activity?.title = context.getString(R.string.app_full_name)
+        }
+    }
+
     // Collect state flows
     val connectionState by viewModel.connectionState.collectAsState()
     val motorsEnabled by viewModel.motorsEnabled.collectAsState()
@@ -100,7 +118,6 @@ fun DeviceScreen(
     }
 
     DeviceScreenContent(
-        device = device,
         connectionStateString = connectionStateString,
         firmwareVersion = firmwareVersion,
         batteryLevel = batteryLevel,
@@ -147,7 +164,6 @@ fun DeviceScreen(
 // ----------------------------------------------------------------------------
 @Composable
 fun DeviceScreenContent(
-    device: AgoSliderDevice?,
     connectionStateString: String,
     firmwareVersion: String,
     batteryLevel: Int,
@@ -210,7 +226,6 @@ fun DeviceScreenContent(
                 .padding(innerPadding)
         ) {
             DeviceHeader(
-                device = device,
                 connectionStateString = connectionStateString,
                 firmwareVersion = firmwareVersion,
                 batteryLevel = batteryLevel,
@@ -274,7 +289,6 @@ fun DeviceScreenContent(
 // ----------------------------------------------------------------------------
 @Composable
 private fun DeviceHeader(
-    device: AgoSliderDevice?,
     connectionStateString: String,
     firmwareVersion: String,
     batteryLevel: Int,
@@ -282,15 +296,26 @@ private fun DeviceHeader(
     onMotorsEnabledChange: (Boolean) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(
-            text = device?.getDisplayName() ?: "Unknown",
-            style = MaterialTheme.typography.headlineSmall
-        )
-        Text(
-            text = "$connectionStateString | FW $firmwareVersion | " +
-                    "Battery ${batteryLevel * 100 / 255}%",
-            style = MaterialTheme.typography.bodySmall
-        )
+        // The device name is not repeated here — it is in the action bar title
+        // Three equal columns, so a field changing width (connection state, version)
+        // cannot shift the others sideways
+        Row(modifier = Modifier.fillMaxWidth()) {
+            HeaderStatusField(
+                text = connectionStateString,
+                textAlign = TextAlign.Start,
+                modifier = Modifier.weight(1f)
+            )
+            HeaderStatusField(
+                text = "FW $firmwareVersion",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f)
+            )
+            HeaderStatusField(
+                text = "Battery ${batteryLevel * 100 / 255}%",
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f)
+            )
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -301,6 +326,23 @@ private fun DeviceHeader(
     }
 }
 
+@Composable
+private fun HeaderStatusField(
+    text: String,
+    textAlign: TextAlign,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = textAlign,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier
+    )
+}
+
 // ----------------------------------------------------------------------------
 // Previews
 // ----------------------------------------------------------------------------
@@ -308,11 +350,6 @@ private fun DeviceHeader(
 fun DeviceScreenPreview(darkTheme: Boolean, initialTab: DeviceTab = DeviceTab.Motion) {
     AgoSliderTheme(darkTheme) {
         DeviceScreenContent(
-            device = AgoSliderDevice(
-                deviceName = "AGO Slider",
-                macAddress = "AA:BB:CC:DD:EE:FF",
-                friendlyName = "Test Device"
-            ),
             connectionStateString = "Connected",
             firmwareVersion = "v1.0.0",
             batteryLevel = 200,

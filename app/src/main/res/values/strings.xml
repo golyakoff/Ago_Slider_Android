@@ -1,6 +1,7 @@
 <resources>
-    <string name="app_name">АГО Слайдер</string>
-    <string name="app_full_name">АГО Слайдер | Bluetooth LE клиент</string>
+    <string name="app_name">Слайдер</string>
+    <string name="app_full_name">Слайдер | Bluetooth LE клиент</string>
+    <string name="device_title">Слайдер | %1$s</string>
     <string name="device_tab_motion">Движение</string>
     <string name="device_tab_service">Сервис</string>
     <string name="device_tab_settings">Настройки</string>
