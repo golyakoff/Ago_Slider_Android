@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.service.bluetooth.BluetoothService
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 @HiltViewModel
 class DeviceViewModel @Inject constructor(
@@ -41,7 +42,8 @@ class DeviceViewModel @Inject constructor(
     val batteryLevel = bluetoothService.batteryLevel
     val firmwareVersion = bluetoothService.firmwareVersion
 
-    // Simple UI state for move command
+    // Move command, in the axis's own unit (mm or degrees) — the device works in steps, so
+    // the distances are converted on the way out
     private val _moveX = MutableStateFlow(0)
     val moveX: StateFlow<Int> = _moveX.asStateFlow()
     private val _moveC = MutableStateFlow(0)
@@ -54,7 +56,20 @@ class DeviceViewModel @Inject constructor(
     fun updateMoveB(value: Int) { _moveB.value = value }
 
     fun sendMoveCommand() {
-        bluetoothService.sendMoveCommand(_moveX.value, _moveC.value, _moveB.value)
+        bluetoothService.sendMoveCommand(
+            unitsToSteps(_moveX.value, unitsPerStep.value.first, microsteps.value.first),
+            unitsToSteps(_moveC.value, unitsPerStep.value.second, microsteps.value.second),
+            unitsToSteps(_moveB.value, unitsPerStep.value.third, microsteps.value.third)
+        )
+    }
+
+    /**
+     * The device moves in STEP pulses, i.e. microsteps, while `units per step` is per full
+     * motor step — the inverse of how the settings screen turns a step rate into mm/s.
+     */
+    private fun unitsToSteps(units: Int, unitsPerStep: Float, microsteps: Int): Int {
+        if (unitsPerStep == 0f) return 0
+        return (units / unitsPerStep * microsteps).roundToInt()
     }
 
     fun setMotorsEnabled(enabled: Boolean) {

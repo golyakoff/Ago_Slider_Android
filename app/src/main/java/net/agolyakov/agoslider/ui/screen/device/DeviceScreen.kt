@@ -245,6 +245,7 @@ fun DeviceScreenContent(
                     moveX = moveX,
                     moveC = moveC,
                     moveB = moveB,
+                    axisUnit = axisUnit,
                     limitStatus = limitStatus,
                     powerInfo = powerInfo,
                     powerInfoString = powerInfoString,

@@ -42,7 +42,9 @@
     <string name="answer_no">НЕТ</string>
 
     <!-- Service tab -->
-    <string name="service_move_title">Относительное перемещение (шаги)</string>
+    <string name="service_move_title">Относительное перемещение</string>
+    <string name="service_move_mm">%1$d мм</string>
+    <string name="service_move_deg">%1$d град</string>
     <string name="service_move_button">Переместить</string>
     <string name="service_limit_switches">Концевики: X=%1$s, C=%2$s, B=%3$s</string>
     <string name="service_power">Питание: %1$s В, %2$s А, %3$s Вт</string>
