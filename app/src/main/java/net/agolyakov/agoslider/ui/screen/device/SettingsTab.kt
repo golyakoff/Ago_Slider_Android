@@ -6,6 +6,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.LinearScale
+import androidx.compose.material.icons.filled.PanTool
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +80,7 @@ fun SettingsTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         IntSliderTriple(
+            icon = Icons.Default.Bolt,
             title = stringResource(R.string.settings_run_current),
             values = runCurrentEdit,
             range = CURRENT_RANGE,
@@ -78,6 +90,7 @@ fun SettingsTabContent(
             onSave = { onRunCurrentChange(runCurrentEdit.first, runCurrentEdit.second, runCurrentEdit.third) }
         )
         IntSliderTriple(
+            icon = Icons.Default.PauseCircle,
             title = stringResource(R.string.settings_hold_current),
             values = holdCurrentEdit,
             range = CURRENT_RANGE,
@@ -87,6 +100,7 @@ fun SettingsTabContent(
             onSave = { onHoldCurrentChange(holdCurrentEdit.first, holdCurrentEdit.second, holdCurrentEdit.third) }
         )
         IntDropdownTriple(
+            icon = Icons.Default.LinearScale,
             title = stringResource(R.string.settings_microsteps),
             values = microstepsEdit,
             options = MICROSTEP_OPTIONS,
@@ -95,6 +109,7 @@ fun SettingsTabContent(
             onSave = { onMicrostepsChange(microstepsEdit.first, microstepsEdit.second, microstepsEdit.third) }
         )
         BoolTriple(
+            icon = Icons.Default.SwapHoriz,
             title = stringResource(R.string.settings_invert_dir),
             values = invertDirEdit,
             dirty = invertDirEdit != invertDir,
@@ -102,6 +117,7 @@ fun SettingsTabContent(
             onSave = { onInvertDirChange(invertDirEdit.first, invertDirEdit.second, invertDirEdit.third) }
         )
         AxisUnitTriple(
+            icon = Icons.Default.Straighten,
             title = stringResource(R.string.settings_axis_unit),
             values = axisUnitEdit,
             dirty = axisUnitEdit != axisUnit,
@@ -109,8 +125,11 @@ fun SettingsTabContent(
             onSave = { onAxisUnitChange(axisUnitEdit.first, axisUnitEdit.second, axisUnitEdit.third) }
         )
         FloatTriple(
+            icon = Icons.Default.Tune,
             title = stringResource(R.string.settings_units_per_step),
             deviceValues = unitsPerStep,
+            // The edited copy, so the "/step" captions follow the unit radio buttons live
+            axisIsDegrees = axisUnitEdit,
             dirty = unitsPerStepEdit != null && unitsPerStepEdit != unitsPerStep,
             onValueChange = { unitsPerStepEdit = it },
             onSave = {
@@ -118,6 +137,7 @@ fun SettingsTabContent(
             }
         )
         IntSliderTriple(
+            icon = Icons.AutoMirrored.Filled.TrendingUp,
             title = stringResource(R.string.settings_axis_accel),
             values = axisAccelEdit,
             range = ACCEL_RANGE,
@@ -127,6 +147,7 @@ fun SettingsTabContent(
             onSave = { onAxisAccelChange(axisAccelEdit.first, axisAccelEdit.second, axisAccelEdit.third) }
         )
         AxisSpeedTriple(
+            icon = Icons.Default.Speed,
             title = stringResource(R.string.settings_axis_speed),
             values = axisSpeedEdit,
             range = SPEED_RANGE,
@@ -141,6 +162,7 @@ fun SettingsTabContent(
             onSave = { onAxisSpeedChange(axisSpeedEdit.first, axisSpeedEdit.second, axisSpeedEdit.third) }
         )
         BoolTriple(
+            icon = Icons.Default.PanTool,
             title = stringResource(R.string.settings_virtual_limit),
             values = virtualLimitEdit,
             dirty = virtualLimitEdit != virtualLimit,
@@ -148,6 +170,7 @@ fun SettingsTabContent(
             onSave = { onVirtualLimitChange(virtualLimitEdit.first, virtualLimitEdit.second, virtualLimitEdit.third) }
         )
         BoolTriple(
+            icon = Icons.Default.VolumeOff,
             title = stringResource(R.string.settings_stealthchop),
             values = stealthChopEdit,
             dirty = stealthChopEdit != stealthChop,

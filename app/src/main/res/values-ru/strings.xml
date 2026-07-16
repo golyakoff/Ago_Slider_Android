@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Слайдер</string>
     <string name="app_full_name">Слайдер | Bluetooth LE клиент</string>
     <string name="device_title">Слайдер | %1$s</string>
@@ -59,16 +59,18 @@
     <string name="settings_microsteps">Микрошаги</string>
     <string name="settings_invert_dir">Инверсия направления</string>
     <string name="settings_axis_unit">Единицы измерения оси</string>
-    <string name="settings_units_per_step">Единиц на шаг (мм/шаг или град/шаг)</string>
+    <string name="settings_units_per_step">Единиц на шаг</string>
     <string name="settings_axis_accel">Ускорение оси (шагов/с²)</string>
     <string name="settings_axis_speed">Скорость оси по умолчанию (шагов/с)</string>
-    <string name="settings_virtual_limit">Виртуальный лимит включён</string>
-    <string name="settings_stealthchop">StealthChop включён</string>
+    <string name="settings_virtual_limit">Виртуальный лимит</string>
+    <string name="settings_stealthchop">StealthChop</string>
     <string name="settings_save">СОХРАНИТЬ</string>
     <string name="settings_mm_per_sec">≈ %1$s мм/с</string>
     <string name="settings_deg_per_sec">≈ %1$s град/с</string>
     <string name="unit_mm">мм</string>
     <string name="unit_deg">град</string>
+    <string name="unit_mm_per_step">мм/шаг</string>
+    <string name="unit_deg_per_step">град/шаг</string>
 
     <!-- Firmware update screen -->
     <string name="fw_title">Обновление прошивки</string>

@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -13,6 +15,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
@@ -27,7 +30,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import net.agolyakov.agoslider.R
@@ -43,8 +48,29 @@ import kotlin.math.roundToInt
 // ----------------------------------------------------------------------------
 private val AXES = listOf("X", "C", "B")
 
+/** Icon-and-title header row shared by every card on the device screen's tabs. */
+@Composable
+fun CardTitle(icon: ImageVector, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.outline
+        )
+    }
+}
+
 @Composable
 fun ConfigCard(
+    icon: ImageVector,
     title: String,
     dirty: Boolean,
     onSave: () -> Unit,
@@ -55,7 +81,7 @@ fun ConfigCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
+            CardTitle(icon, title)
             content()
             Button(onClick = onSave, enabled = dirty) {
                 Text(stringResource(R.string.settings_save))
@@ -67,6 +93,7 @@ fun ConfigCard(
 /** Per-axis choice out of a fixed set of values, e.g. microsteps. */
 @Composable
 fun IntDropdownTriple(
+    icon: ImageVector,
     title: String,
     values: Triple<Int, Int, Int>,
     options: List<Int>,
@@ -74,7 +101,7 @@ fun IntDropdownTriple(
     onValueChange: (Triple<Int, Int, Int>) -> Unit,
     onSave: () -> Unit
 ) {
-    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
+    ConfigCard(icon = icon, title = title, dirty = dirty, onSave = onSave) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AxisDropdown(AXES[0], values.first, options, Modifier.weight(1f)) {
                 onValueChange(values.copy(first = it))
@@ -92,6 +119,7 @@ fun IntDropdownTriple(
 /** Per-axis value on a slider snapped to [step], e.g. currents and acceleration. */
 @Composable
 fun IntSliderTriple(
+    icon: ImageVector,
     title: String,
     values: Triple<Int, Int, Int>,
     range: IntRange,
@@ -100,7 +128,7 @@ fun IntSliderTriple(
     onValueChange: (Triple<Int, Int, Int>) -> Unit,
     onSave: () -> Unit
 ) {
-    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
+    ConfigCard(icon = icon, title = title, dirty = dirty, onSave = onSave) {
         AxisSlider(
             axis = AXES[0],
             value = values.first,
@@ -131,6 +159,7 @@ fun IntSliderTriple(
  */
 @Composable
 fun AxisSpeedTriple(
+    icon: ImageVector,
     title: String,
     values: Triple<Int, Int, Int>,
     range: IntRange,
@@ -142,7 +171,7 @@ fun AxisSpeedTriple(
     onValueChange: (Triple<Int, Int, Int>) -> Unit,
     onSave: () -> Unit
 ) {
-    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
+    ConfigCard(icon = icon, title = title, dirty = dirty, onSave = onSave) {
         AxisSlider(
             axis = AXES[0],
             value = values.first,
@@ -173,13 +202,14 @@ fun AxisSpeedTriple(
 /** Per-axis unit: millimetres for a linear axis, degrees for a rotary one. */
 @Composable
 fun AxisUnitTriple(
+    icon: ImageVector,
     title: String,
     values: Triple<Boolean, Boolean, Boolean>,
     dirty: Boolean,
     onValueChange: (Triple<Boolean, Boolean, Boolean>) -> Unit,
     onSave: () -> Unit
 ) {
-    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
+    ConfigCard(icon = icon, title = title, dirty = dirty, onSave = onSave) {
         AxisUnitRow(AXES[0], values.first) { onValueChange(values.copy(first = it)) }
         AxisUnitRow(AXES[1], values.second) { onValueChange(values.copy(second = it)) }
         AxisUnitRow(AXES[2], values.third) { onValueChange(values.copy(third = it)) }
@@ -188,13 +218,14 @@ fun AxisUnitTriple(
 
 @Composable
 fun BoolTriple(
+    icon: ImageVector,
     title: String,
     values: Triple<Boolean, Boolean, Boolean>,
     dirty: Boolean,
     onValueChange: (Triple<Boolean, Boolean, Boolean>) -> Unit,
     onSave: () -> Unit
 ) {
-    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
+    ConfigCard(icon = icon, title = title, dirty = dirty, onSave = onSave) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -231,8 +262,10 @@ fun BoolTriple(
  */
 @Composable
 fun FloatTriple(
+    icon: ImageVector,
     title: String,
     deviceValues: Triple<Float, Float, Float>,
+    axisIsDegrees: Triple<Boolean, Boolean, Boolean>,
     dirty: Boolean,
     onValueChange: (Triple<Float, Float, Float>?) -> Unit,
     onSave: () -> Unit
@@ -248,11 +281,19 @@ fun FloatTriple(
         )
     }
 
-    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
+    @Composable
+    fun perStepLabel(isDegrees: Boolean) = stringResource(
+        if (isDegrees) R.string.unit_deg_per_step else R.string.unit_mm_per_step
+    )
+
+    ConfigCard(icon = icon, title = title, dirty = dirty, onSave = onSave) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AxisTextField(AXES[0], x, { x = it; report() }, Modifier.weight(1f))
-            AxisTextField(AXES[1], c, { c = it; report() }, Modifier.weight(1f))
-            AxisTextField(AXES[2], b, { b = it; report() }, Modifier.weight(1f))
+            AxisTextField(AXES[0], x, { x = it; report() }, Modifier.weight(1f),
+                caption = perStepLabel(axisIsDegrees.first))
+            AxisTextField(AXES[1], c, { c = it; report() }, Modifier.weight(1f),
+                caption = perStepLabel(axisIsDegrees.second))
+            AxisTextField(AXES[2], b, { b = it; report() }, Modifier.weight(1f),
+                caption = perStepLabel(axisIsDegrees.third))
         }
     }
 }
@@ -392,13 +433,15 @@ private fun AxisTextField(
     axis: String,
     value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    caption: String? = null
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(axis) },
         singleLine = true,
+        supportingText = caption?.let { { Text(it) } },
         modifier = modifier
     )
 }

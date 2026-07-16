@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.OpenWith
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
@@ -57,10 +60,7 @@ fun ServiceTabContent(
         // in as a distance either side of "stay put" instead of typed as a signed number
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    stringResource(R.string.service_move_title),
-                    style = MaterialTheme.typography.titleMedium
-                )
+                CardTitle(Icons.Default.OpenWith, stringResource(R.string.service_move_title))
                 MoveAxisSlider("X", moveX, MOVE_X_RANGE, MOVE_STEP, axisUnit.first, onMoveXChange)
                 MoveAxisSlider("C", moveC, MOVE_C_RANGE, MOVE_STEP, axisUnit.second, onMoveCChange)
                 MoveAxisSlider("B", moveB, MOVE_B_RANGE, MOVE_STEP, axisUnit.third, onMoveBChange)
@@ -96,10 +96,7 @@ fun ServiceTabContent(
         // Firmware update
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(8.dp)) {
-                Text(
-                    stringResource(R.string.service_firmware_title),
-                    style = MaterialTheme.typography.titleMedium
-                )
+                CardTitle(Icons.Default.SystemUpdate, stringResource(R.string.service_firmware_title))
                 Text(stringResource(R.string.service_firmware_version, firmwareVersion))
                 Button(onClick = onCheckFirmwareUpdates) {
                     Text(stringResource(R.string.service_check_updates))
