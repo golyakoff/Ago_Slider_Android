@@ -1,3 +1,17 @@
+# Release 0.1.2
+
+- UI switched to English with a Russian translation; the in-app language follows the
+  system locale by default and can be changed from the Home screen.
+- Settings tab reworked into typed controls that save on change, with an explanation of
+  what a step rate means.
+- Service tab moves are entered as a distance in axis units instead of a raw step count.
+- Device state (motor enable, limit switches, power, battery) is read right on connect,
+  and the device header is laid out in fixed columns.
+- Home screen shows the installed app version and a notice when a newer release is
+  available.
+- Fixed: the Save button on a Settings card now disables after a successful save —
+  every setter re-reads its characteristic so the app state resyncs with the device.
+
 # Release 0.1.1
 
 - Faster firmware OTA upload: chunk size now fits a single BLE write (MTU-3) instead of

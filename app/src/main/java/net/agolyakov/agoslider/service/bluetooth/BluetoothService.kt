@@ -290,30 +290,37 @@ class BluetoothService @Inject constructor(
 
     fun setAxisUnit(xDeg: Boolean, cDeg: Boolean, bDeg: Boolean) {
         bleManager.writeAxisUnitCharacteristic(xDeg, cDeg, bDeg)
+        bleManager.readAxisUnitCharacteristic()
     }
 
     fun setUnitsPerStep(x: Float, c: Float, b: Float) {
         bleManager.writeUnitsPerStepCharacteristic(x, c, b)
+        bleManager.readUnitsPerStepCharacteristic()
     }
 
     fun setAxisSpeed(x: Int, c: Int, b: Int) {
         bleManager.writeAxisSpeedCharacteristic(x, c, b)
+        bleManager.readAxisSpeedCharacteristic()
     }
 
     fun setAxisAccel(x: Int, c: Int, b: Int) {
         bleManager.writeAxisAccelCharacteristic(x, c, b)
+        bleManager.readAxisAccelCharacteristic()
     }
 
     fun setVirtualLimit(xEnable: Boolean, cEnable: Boolean, bEnable: Boolean) {
         bleManager.writeVirtualLimitCharacteristic(xEnable, cEnable, bEnable)
+        bleManager.readVirtualLimitCharacteristic()
     }
 
     fun setStealthChop(xEnable: Boolean, cEnable: Boolean, bEnable: Boolean) {
         bleManager.writeStealthChopCharacteristic(xEnable, cEnable, bEnable)
+        bleManager.readStealthChopCharacteristic()
     }
 
     fun setInvertDir(xInvert: Boolean, cInvert: Boolean, bInvert: Boolean) {
         bleManager.writeInvertDirCharacteristic(xInvert, cInvert, bInvert)
+        bleManager.readInvertDirCharacteristic()
     }
 
     // ========================== OTA Methods ==========================
