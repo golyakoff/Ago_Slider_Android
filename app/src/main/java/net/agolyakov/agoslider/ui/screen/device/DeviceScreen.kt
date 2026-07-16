@@ -97,7 +97,6 @@ fun DeviceScreen(
         is ConnectionState.Disconnecting -> "Disconnecting"
         is ConnectionState.Disconnected -> "Disconnected"
         is ConnectionState.Error -> "Error: ${(connectionState as ConnectionState.Error).message}"
-        else -> connectionState.toString()
     }
 
     DeviceScreenContent(

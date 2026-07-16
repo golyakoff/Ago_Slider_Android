@@ -39,6 +39,11 @@ Split the single device page into separate screens by purpose:
 - [x] Remove the stub `DeviceRepository` — real BLE scanning in `HomeViewModel` drives the
   device list; previews use a local sample list.
 - [x] Deprecated `Divider` → `HorizontalDivider` in Compose UI.
+- Migrate `app/build.gradle.kts` to the new AGP DSL: the build warning
+  `'fun Project.android(...)' is deprecated` comes from the compatibility mode
+  (`android.newDsl=false` in gradle.properties) kept during the AGP 9 upgrade. Proper fix =
+  drop that flag plus rewrite the `applicationVariants.all { }` APK-renaming block with the
+  `androidComponents` variant API. Same applies to TetrisClockBLE — migrate both together.
 - [x] The firmware repo (`Ago_Slider_ESP32`) now has a release workflow publishing
   `ago_slider_{debug,release}_16mb_fw.bin`; the app's asset filters updated from `4mb`
   to `16mb` accordingly, and the Service tab got a firmware-update entry point.
