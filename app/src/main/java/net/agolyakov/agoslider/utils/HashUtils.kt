@@ -1,4 +1,4 @@
-package com.yourcompany.yourapp.utils // or com.yourcompany.yourapp.data.utils
+package net.agolyakov.agoslider.utils
 
 import java.io.File
 import java.io.InputStream

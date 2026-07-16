@@ -1,7 +1,7 @@
 package net.agolyakov.agoslider.data.repository
 
 import android.content.Context
-import com.yourcompany.yourapp.utils.HashUtils
+import net.agolyakov.agoslider.utils.HashUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

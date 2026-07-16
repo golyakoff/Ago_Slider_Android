@@ -70,12 +70,15 @@ Standard MVVM + Hilt DI + single-Activity Compose Navigation, layered as
 
 - **Navigation** (`navigation/NavGraph.kt`, `Screen.kt`) — three Compose destinations: `Home`
   (scan/select device) → `Device` (main control screen, receives `AgoSliderDevice` via the nav
-  back-stack `SavedStateHandle`, not as a route argument) → `FirmwareUpdate`.
+  back-stack `SavedStateHandle`, not as a route argument) → `FirmwareUpdate`. The Device screen
+  itself is split into three bottom-nav tabs (`DeviceTab` enum in `DeviceScreen.kt`, tab content
+  in `MotionTab.kt` / `ServiceTab.kt` / `SettingsTab.kt`): Motion (high-level commands — Home
+  now, scenarios mode later, see `TODO.md`), Service (low-level per-axis relative moves + limit
+  switch / power status), Settings (all device config). The shared header (device identity,
+  connection state, battery, global motor-enable switch) stays visible on every tab.
 
-- **`data/repository/DeviceRepository`** currently returns a hardcoded stub device list (mixed
-  AgoSlider/"Matrix Clock" placeholder entries) rather than real scan results — check whether
-  live BLE scanning (in `HomeViewModel`) or this stub is actually driving the Home screen before
-  assuming device discovery works end-to-end.
+- **Device discovery** — `HomeViewModel` does live BLE scanning (filtered by device name
+  "AGO Slider") and enriches results with user-assigned friendly names from preferences.
 
 - **Persistence** — `AgoSliderPreferences` (SharedPreferences-backed, implements
   `domain.repository.PreferencesRepository`) stores only user-assigned friendly names per MAC
@@ -83,12 +86,8 @@ Standard MVVM + Hilt DI + single-Activity Compose Navigation, layered as
 
 ## Known issues to be aware of
 
-- `di/MainModule.kt` hardcodes a GitHub PAT and points `GithubRepository` at
-  `golyakoff/Matrix_Clock_ESP32` — both look like leftovers from another project this app was
-  bootstrapped from, not the AGO Slider firmware repo. Firmware-update checks will hit the wrong
-  GitHub repo until this is corrected, and **the committed PAT is a live leaked credential that
-  should be revoked and removed from git history**, not just from the working tree.
-- `utils/HashUtils.kt` declares `package com.yourcompany.yourapp.utils` while physically living
-  under `net/agolyakov/agoslider/utils/` — it still compiles (the import in
-  `FirmwareRepository.kt` matches the declared package), but it's inconsistent with the rest of
-  the codebase's package naming.
+- A GitHub PAT was previously hardcoded in `di/MainModule.kt` and **remains in git history**
+  (commits before the cleanup) — it must be revoked on GitHub. The token is now optional and
+  read from `local.properties` (`github.token`) via `BuildConfig.GITHUB_TOKEN`.
+- The firmware repo (`golyakoff/Ago_Slider_ESP32`) has no GitHub Releases yet; the update
+  check in `FirmwareRepository` expects assets named `*_release_4mb_fw.bin`.

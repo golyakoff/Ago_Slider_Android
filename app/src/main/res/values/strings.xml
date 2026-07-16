@@ -1,27 +1,14 @@
 <resources>
     <string name="app_name">АГО Слайдер</string>
     <string name="app_full_name">АГО Слайдер | Bluetooth LE клиент</string>
-    <string name="mc_manual_turn_on_clock">Включить часы</string>
-    <string name="mc_manual_turn_off_clock">Выключить часы</string>
-    <string name="mc_manual_brightness">Яркость</string>
-    <string name="mc_aging_offset">Подстроить частоту</string>
-    <string name="mc_rtc_temperature">Температура чипа таймера</string>
-    <string name="mc_degrees_celsius">°C</string>
-    <string name="mc_ppm">ч/млн</string>
+    <string name="device_tab_motion">Движение</string>
+    <string name="device_tab_service">Сервис</string>
+    <string name="device_tab_settings">Настройки</string>
     <string name="perm_bluetooth_is_off">Приложение требует включения Bluetooth</string>
     <string name="perm_not_enough_permissions">Приложение не получило необходимых разрешений</string>
-    <string name="mc_time_of_ago_slider">На часах</string>
-    <string name="mc_time_of_mobile_phone">Точное время</string>
-    <string name="mc_action_synchronize_time">Синхронизировать время</string>
-    <string name="mc_action_set_time">Установить время</string>
-    <string name="mc_check_auto_on">Авто ВКЛ</string>
-    <string name="mc_check_auto_off">Авто ВЫКЛ</string>
-    <string name="mc_dialog_ok">OK</string>
-    <string name="mc_dialog_cancel">Отмена</string>
-    <string name="mc_dialog_set_aging_offset">Задать коррекцию</string>
-    <string name="mc_dialog_agin_offset_tip1">Коррекция позволяет ускорить или замедлить время для более точного хода часов.\n\nПоложительное значение в 10 единиц (1 ч/млн) замедлит время хода часов примерно на 1 секунду в 11,5 дней.\n\nЕсли часы \"убегают вперёд\" на 2 секунды в месяц, необходимо выставить положительное значение 8 (0.8 ч/млн).</string>
-    <string name="mc_rename">Переименовать</string>
-    <string name="mc_rename_device">Переименовать устройство</string>
-    <string name="mc_dialog_save">Сохранить</string>
-    <string name="mc_dialog_device_name">Наименование устройства</string>
+    <string name="rename">Переименовать</string>
+    <string name="rename_device">Переименовать устройство</string>
+    <string name="dialog_save">Сохранить</string>
+    <string name="dialog_cancel">Отмена</string>
+    <string name="dialog_device_name">Наименование устройства</string>
 </resources>

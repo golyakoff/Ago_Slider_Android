@@ -1,32 +1,55 @@
 package net.agolyakov.agoslider.ui.screen.device
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.ControlCamera
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import net.agolyakov.agoslider.R
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
+import net.agolyakov.agoslider.data.model.ble.ConnectionState
 import net.agolyakov.agoslider.data.model.ble.HomeStatus
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.material3.Text
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.text.font.FontWeight
-import net.agolyakov.agoslider.data.model.ble.ConnectionState
+
+// ----------------------------------------------------------------------------
+// Tabs of the device screen, grouped by purpose:
+//  - Motion:   high-level motion commands (Home; scenarios mode in the future)
+//  - Service:  low-level per-axis moves and raw hardware status
+//  - Settings: axis/driver configuration
+// ----------------------------------------------------------------------------
+enum class DeviceTab(@StringRes val labelRes: Int, val icon: ImageVector) {
+    Motion(R.string.device_tab_motion, Icons.Filled.ControlCamera),
+    Service(R.string.device_tab_service, Icons.Filled.Build),
+    Settings(R.string.device_tab_settings, Icons.Filled.Settings)
+}
 
 // ----------------------------------------------------------------------------
 // Public screen (uses Hilt ViewModel)
@@ -119,7 +142,7 @@ fun DeviceScreen(
 }
 
 // ----------------------------------------------------------------------------
-// Pure UI component (previewable)
+// Pure UI component (previewable): shared header + bottom tab navigation
 // ----------------------------------------------------------------------------
 @Composable
 fun DeviceScreenContent(
@@ -160,236 +183,116 @@ fun DeviceScreenContent(
     onAxisAccelChange: (Int, Int, Int) -> Unit,
     onVirtualLimitChange: (Boolean, Boolean, Boolean) -> Unit,
     onStealthChopChange: (Boolean, Boolean, Boolean) -> Unit,
-    onInvertDirChange: (Boolean, Boolean, Boolean) -> Unit
+    onInvertDirChange: (Boolean, Boolean, Boolean) -> Unit,
+    initialTab: DeviceTab = DeviceTab.Motion
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Header
+    var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                DeviceTab.entries.forEach { tab ->
+                    NavigationBarItem(
+                        selected = selectedTab == tab,
+                        onClick = { selectedTab = tab },
+                        icon = { Icon(tab.icon, contentDescription = stringResource(tab.labelRes)) },
+                        label = { Text(stringResource(tab.labelRes)) }
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            DeviceHeader(
+                device = device,
+                connectionStateString = connectionStateString,
+                firmwareVersion = firmwareVersion,
+                batteryLevel = batteryLevel,
+                motorsEnabled = motorsEnabled,
+                onMotorsEnabledChange = onMotorsEnabledChange
+            )
+
+            HorizontalDivider()
+
+            when (selectedTab) {
+                DeviceTab.Motion -> MotionTabContent(
+                    homeStatus = homeStatus,
+                    onSendHomeCommand = onSendHomeCommand
+                )
+
+                DeviceTab.Service -> ServiceTabContent(
+                    moveX = moveX,
+                    moveC = moveC,
+                    moveB = moveB,
+                    limitStatus = limitStatus,
+                    powerInfo = powerInfo,
+                    powerInfoString = powerInfoString,
+                    onMoveXChange = onMoveXChange,
+                    onMoveCChange = onMoveCChange,
+                    onMoveBChange = onMoveBChange,
+                    onSendMoveCommand = onSendMoveCommand
+                )
+
+                DeviceTab.Settings -> SettingsTabContent(
+                    microsteps = microsteps,
+                    runCurrent = runCurrent,
+                    holdCurrent = holdCurrent,
+                    axisUnit = axisUnit,
+                    unitsPerStep = unitsPerStep,
+                    axisSpeed = axisSpeed,
+                    axisAccel = axisAccel,
+                    virtualLimit = virtualLimit,
+                    stealthChop = stealthChop,
+                    invertDir = invertDir,
+                    onMicrostepsChange = onMicrostepsChange,
+                    onRunCurrentChange = onRunCurrentChange,
+                    onHoldCurrentChange = onHoldCurrentChange,
+                    onAxisUnitChange = onAxisUnitChange,
+                    onUnitsPerStepChange = onUnitsPerStepChange,
+                    onAxisSpeedChange = onAxisSpeedChange,
+                    onAxisAccelChange = onAxisAccelChange,
+                    onVirtualLimitChange = onVirtualLimitChange,
+                    onStealthChopChange = onStealthChopChange,
+                    onInvertDirChange = onInvertDirChange
+                )
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Shared header: device identity, connection status and the global motor
+// enable switch — visible on every tab
+// ----------------------------------------------------------------------------
+@Composable
+private fun DeviceHeader(
+    device: AgoSliderDevice?,
+    connectionStateString: String,
+    firmwareVersion: String,
+    batteryLevel: Int,
+    motorsEnabled: Boolean,
+    onMotorsEnabledChange: (Boolean) -> Unit
+) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
-            text = "Device: ${device?.getDisplayName() ?: "Unknown"}",
+            text = device?.getDisplayName() ?: "Unknown",
             style = MaterialTheme.typography.headlineSmall
         )
-        Text(text = "MAC: ${device?.macAddress ?: "N/A"}")
-        Text(text = "Firmware: $firmwareVersion")
-        Text(text = "Connection state: $connectionStateString")
-        Text(text = "Battery level: ${batteryLevel * 100 / 255}% ($batteryLevel/255)")
-
-        Divider()
-
-        // Motor enable
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Motors enabled", modifier = Modifier.weight(1f))
-            Switch(checked = motorsEnabled, onCheckedChange = onMotorsEnabledChange)
-        }
-
-        // Home command
-        Text("Homing", style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = "$connectionStateString | FW $firmwareVersion | " +
+                    "Battery ${batteryLevel * 100 / 255}%",
+            style = MaterialTheme.typography.bodySmall
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(
-                onClick = { onSendHomeCommand(true, false, false) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Home X")
-            }
-            Button(
-                onClick = { onSendHomeCommand(false, true, false) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Home C")
-            }
-            Button(
-                onClick = { onSendHomeCommand(false, false, true) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Home B")
-            }
-        }
-        Button(
-            onClick = { onSendHomeCommand(true, true, true) },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Home All")
-        }
-        // Home status table
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-            Column(modifier = Modifier.padding(8.dp)) {
-                // Row 1: Home Requested
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Home Requested:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "X=${if (homeStatus.requested.first) "YES" else "NO"}, " +
-                                "C=${if (homeStatus.requested.second) "YES" else "NO"}, " +
-                                "B=${if (homeStatus.requested.third) "YES" else "NO"}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                // Row 2: Homed Status
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Homed Status:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "X=${if (homeStatus.homed.first) "YES" else "NO"}, " +
-                                "C=${if (homeStatus.homed.second) "YES" else "NO"}, " +
-                                "B=${if (homeStatus.homed.third) "YES" else "NO"}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        }
-
-        // Move command
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(8.dp)) {
-                Text("Move relative (steps)", style = MaterialTheme.typography.titleMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = moveX.toString(),
-                        onValueChange = { it.toIntOrNull()?.let(onMoveXChange) },
-                        label = { Text("X") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = moveC.toString(),
-                        onValueChange = { it.toIntOrNull()?.let(onMoveCChange) },
-                        label = { Text("C") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = moveB.toString(),
-                        onValueChange = { it.toIntOrNull()?.let(onMoveBChange) },
-                        label = { Text("B") },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Button(onClick = onSendMoveCommand) { Text("Move") }
-            }
-        }
-        Divider()
-
-        // Config sections
-        ConfigTriple("Microsteps (1,2,4,8,16,32,64,128,256)", microsteps, onMicrostepsChange)
-        ConfigTriple("Run current (mA)", runCurrent, onRunCurrentChange)
-        ConfigTriple("Hold current (mA)", holdCurrent, onHoldCurrentChange)
-        BoolTriple("Axis unit (true=deg, false=mm)", axisUnit, onAxisUnitChange)
-        FloatTriple("Units per step (mm/step or deg/step)", unitsPerStep, onUnitsPerStepChange)
-        ConfigTriple("Axis speed (steps/sec)", axisSpeed, onAxisSpeedChange)
-        ConfigTriple("Axis accel (steps/sec²)", axisAccel, onAxisAccelChange)
-        BoolTriple("Virtual limit enabled", virtualLimit, onVirtualLimitChange)
-        BoolTriple("StealthChop enabled", stealthChop, onStealthChopChange)
-        BoolTriple("Invert direction", invertDir, onInvertDirChange)
-
-        // Read-only status
-        Text("Limit switches: X=${limitStatus.first}, C=${limitStatus.second}, B=${limitStatus.third}")
-        Text("Power: ${powerInfo.first}V, ${powerInfo.second}A, ${powerInfo.third}W")
-        Text("Power string: $powerInfoString")
-    }
-}
-
-// ----------------------------------------------------------------------------
-// Reusable configuration components
-// ----------------------------------------------------------------------------
-@Composable
-fun ConfigTriple(
-    title: String,
-    values: Triple<Int, Int, Int>,
-    onValueChange: (Int, Int, Int) -> Unit
-) {
-    var x by remember(values.first) { mutableStateOf(values.first.toString()) }
-    var c by remember(values.second) { mutableStateOf(values.second.toString()) }
-    var b by remember(values.third) { mutableStateOf(values.third.toString()) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = x, onValueChange = { x = it }, label = { Text("X") }, modifier = Modifier.weight(1f))
-                OutlinedTextField(value = c, onValueChange = { c = it }, label = { Text("C") }, modifier = Modifier.weight(1f))
-                OutlinedTextField(value = b, onValueChange = { b = it }, label = { Text("B") }, modifier = Modifier.weight(1f))
-            }
-            Button(onClick = {
-                val xi = x.toIntOrNull() ?: values.first
-                val ci = c.toIntOrNull() ?: values.second
-                val bi = b.toIntOrNull() ?: values.third
-                onValueChange(xi, ci, bi)
-            }) { Text("Set") }
-        }
-    }
-}
-
-@Composable
-fun FloatTriple(
-    title: String,
-    values: Triple<Float, Float, Float>,
-    onValueChange: (Float, Float, Float) -> Unit
-) {
-    var x by remember(values.first) { mutableStateOf(values.first.toString()) }
-    var c by remember(values.second) { mutableStateOf(values.second.toString()) }
-    var b by remember(values.third) { mutableStateOf(values.third.toString()) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = x, onValueChange = { x = it }, label = { Text("X") }, modifier = Modifier.weight(1f))
-                OutlinedTextField(value = c, onValueChange = { c = it }, label = { Text("C") }, modifier = Modifier.weight(1f))
-                OutlinedTextField(value = b, onValueChange = { b = it }, label = { Text("B") }, modifier = Modifier.weight(1f))
-            }
-            Button(onClick = {
-                val xf = x.toFloatOrNull() ?: values.first
-                val cf = c.toFloatOrNull() ?: values.second
-                val bf = b.toFloatOrNull() ?: values.third
-                onValueChange(xf, cf, bf)
-            }) { Text("Set") }
-        }
-    }
-}
-
-@Composable
-fun BoolTriple(
-    title: String,
-    values: Triple<Boolean, Boolean, Boolean>,
-    onValueChange: (Boolean, Boolean, Boolean) -> Unit
-) {
-    var x by remember(values.first) { mutableStateOf(values.first) }
-    var c by remember(values.second) { mutableStateOf(values.second) }
-    var b by remember(values.third) { mutableStateOf(values.third) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Row { Text("X: "); Switch(checked = x, onCheckedChange = { x = it }) }
-                Row { Text("C: "); Switch(checked = c, onCheckedChange = { c = it }) }
-                Row { Text("B: "); Switch(checked = b, onCheckedChange = { b = it }) }
-            }
-            Button(onClick = { onValueChange(x, c, b) }) { Text("Set") }
+            Text("Motors enabled", modifier = Modifier.weight(1f))
+            Switch(checked = motorsEnabled, onCheckedChange = onMotorsEnabledChange)
         }
     }
 }
@@ -398,7 +301,7 @@ fun BoolTriple(
 // Previews
 // ----------------------------------------------------------------------------
 @Composable
-fun DeviceScreenPreview(darkTheme: Boolean) {
+fun DeviceScreenPreview(darkTheme: Boolean, initialTab: DeviceTab = DeviceTab.Motion) {
     AgoSliderTheme(darkTheme) {
         DeviceScreenContent(
             device = AgoSliderDevice(
@@ -442,19 +345,32 @@ fun DeviceScreenPreview(darkTheme: Boolean) {
             onAxisAccelChange = { _, _, _ -> },
             onVirtualLimitChange = { _, _, _ -> },
             onStealthChopChange = { _, _, _ -> },
-            onInvertDirChange = { _, _, _ -> }
+            onInvertDirChange = { _, _, _ -> },
+            initialTab = initialTab
         )
     }
 }
 
-@Preview(name = "Light Theme", showBackground = true, heightDp = 2000)
+@Preview(name = "Motion / Light", showBackground = true)
 @Composable
-fun DeviceScreenLightPreview() {
-    DeviceScreenPreview(darkTheme = false)
+fun DeviceScreenMotionLightPreview() {
+    DeviceScreenPreview(darkTheme = false, initialTab = DeviceTab.Motion)
 }
 
-@Preview(name = "Dark Theme", showBackground = true, heightDp = 2000)
+@Preview(name = "Motion / Dark", showBackground = true)
 @Composable
-fun DeviceScreenDarkPreview() {
-    DeviceScreenPreview(darkTheme = true)
+fun DeviceScreenMotionDarkPreview() {
+    DeviceScreenPreview(darkTheme = true, initialTab = DeviceTab.Motion)
+}
+
+@Preview(name = "Service / Light", showBackground = true)
+@Composable
+fun DeviceScreenServiceLightPreview() {
+    DeviceScreenPreview(darkTheme = false, initialTab = DeviceTab.Service)
+}
+
+@Preview(name = "Settings / Light", showBackground = true, heightDp = 1600)
+@Composable
+fun DeviceScreenSettingsLightPreview() {
+    DeviceScreenPreview(darkTheme = false, initialTab = DeviceTab.Settings)
 }

@@ -2,7 +2,6 @@ package net.agolyakov.agoslider.data.remote.interceptors
 
 import okhttp3.Interceptor
 import okhttp3.Response
-import retrofit2.http.Header
 import javax.inject.Inject
 
 class AuthInterceptor @Inject constructor(
@@ -10,13 +9,14 @@ class AuthInterceptor @Inject constructor(
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val originalRequest = chain.request()
-
-        val authenticatedRequest = originalRequest.newBuilder()
-            .header("Authorization", "token $token")
+        val builder = chain.request().newBuilder()
             .header("User-Agent", "AgoSlider-Android-App") // GitHub requires it
-            .build()
 
-        return chain.proceed(authenticatedRequest)
+        // Token is optional: public repos work unauthenticated (lower rate limits)
+        if (token.isNotBlank()) {
+            builder.header("Authorization", "token $token")
+        }
+
+        return chain.proceed(builder.build())
     }
 }

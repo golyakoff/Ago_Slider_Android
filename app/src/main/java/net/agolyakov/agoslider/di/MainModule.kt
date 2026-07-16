@@ -6,8 +6,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import net.agolyakov.agoslider.BuildConfig
 import net.agolyakov.agoslider.data.local.AgoSliderPreferences
-import net.agolyakov.agoslider.data.repository.DeviceRepository
 import net.agolyakov.agoslider.data.repository.FirmwareRepository
 import net.agolyakov.agoslider.data.repository.GithubRepository
 import net.agolyakov.agoslider.domain.repository.PreferencesRepository
@@ -25,11 +25,8 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object MainModule {
-    private val owner = "golyakoff"
-    private val repo = "Matrix_Clock_ESP32"
-
-    // TODO: Replace with retrieval from secure storage
-    private val token = "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"
+    private const val owner = "golyakoff"
+    private const val repo = "Ago_Slider_ESP32"
 
     // Region: Context Providers
     @Provides
@@ -66,7 +63,8 @@ object MainModule {
     @Provides
     @Singleton
     fun provideGitHubToken(): String {
-        return token
+        // Optional: empty unless github.token is set in local.properties
+        return BuildConfig.GITHUB_TOKEN
     }
 
     @Provides
@@ -100,10 +98,6 @@ object MainModule {
         retrofit.create(GithubApiService::class.java)
 
     // Region: Repositories
-    @Provides
-    @Singleton
-    fun provideDeviceRepository(): DeviceRepository = DeviceRepository()
-
     @Provides
     @Singleton
     fun provideGitHubRepository(

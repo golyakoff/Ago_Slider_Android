@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.ControlCamera
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,7 +21,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import net.agolyakov.agoslider.R
-import net.agolyakov.agoslider.data.repository.DeviceRepository
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.navigation.Screen
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
@@ -108,9 +107,9 @@ fun Device(
                 .padding(vertical = 16.dp, horizontal = 24.dp)
         ) {
             Icon(
-                Icons.Outlined.AccessTime,
+                Icons.Outlined.ControlCamera,
                 tint = MaterialTheme.colorScheme.primary,
-                contentDescription = "Настроить",
+                contentDescription = null,
                 modifier = Modifier.size(48.dp)
             )
 
@@ -140,7 +139,7 @@ fun Device(
             ) {
                 Icon(
                     Icons.Outlined.Edit,
-                    contentDescription = stringResource(R.string.mc_rename),
+                    contentDescription = stringResource(R.string.rename),
                     tint = MaterialTheme.colorScheme.secondary
                 )
             }
@@ -158,12 +157,12 @@ fun RenameDeviceDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.mc_rename_device)) },
+        title = { Text(stringResource(R.string.rename_device)) },
         text = {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                label = { Text(stringResource(R.string.mc_dialog_device_name)) },
+                label = { Text(stringResource(R.string.dialog_device_name)) },
                 singleLine = true
             )
         },
@@ -178,23 +177,34 @@ fun RenameDeviceDialog(
                     onDismiss()
                 }
             ) {
-                Text(stringResource(R.string.mc_dialog_save))
+                Text(stringResource(R.string.dialog_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.mc_dialog_cancel))
+                Text(stringResource(R.string.dialog_cancel))
             }
         }
     )
 }
 
+private val previewDeviceList = listOf(
+    AgoSliderDevice(
+        deviceName = "AGO Slider",
+        macAddress = "11:22:33:44:55:66"
+    ),
+    AgoSliderDevice(
+        deviceName = "AGO Slider",
+        macAddress = "11:22:33:44:55:77",
+        friendlyName = "Слайдер в студии"
+    )
+)
+
 @Composable
 @Preview(name = "Light Schema", heightDp = 800, showBackground = false)
 fun DeviceListPreview_1() {
     AgoSliderTheme(darkTheme = false) {
-        val deviceList = DeviceRepository().getDeviceList()
-        DeviceList(deviceList, rememberNavController()) {}
+        DeviceList(previewDeviceList, rememberNavController()) {}
     }
 }
 
@@ -202,7 +212,6 @@ fun DeviceListPreview_1() {
 @Preview(name = "Dark Schema", heightDp = 800, showBackground = true)
 fun DeviceListPreview_2() {
     AgoSliderTheme(darkTheme = true) {
-        val deviceList = DeviceRepository().getDeviceList()
-        DeviceList(deviceList, rememberNavController()) {}
+        DeviceList(previewDeviceList, rememberNavController()) {}
     }
 }
