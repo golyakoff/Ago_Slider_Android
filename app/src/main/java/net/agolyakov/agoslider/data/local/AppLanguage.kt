@@ -2,6 +2,7 @@ package net.agolyakov.agoslider.data.local
 
 import android.content.Context
 import android.content.res.Configuration
+import android.content.res.Resources
 import androidx.core.content.edit
 import java.util.Locale
 
@@ -23,9 +24,20 @@ class LanguagePreferences(context: Context) {
     var language: AppLanguage
         get() {
             val tag = prefs.getString(KEY_LANGUAGE, null)
-            return AppLanguage.entries.firstOrNull { it.tag == tag } ?: AppLanguage.English
+            return AppLanguage.entries.firstOrNull { it.tag == tag } ?: systemLanguage()
         }
         set(value) = prefs.edit { putString(KEY_LANGUAGE, value.tag) }
+
+    /**
+     * Until the user picks one: the system language if we speak it, English otherwise.
+     *
+     * Read from the system resources rather than [Locale.getDefault], which
+     * [withAppLanguage] overrides with the in-app choice.
+     */
+    private fun systemLanguage(): AppLanguage {
+        val tag = Resources.getSystem().configuration.locales[0].language
+        return AppLanguage.entries.firstOrNull { it.tag == tag } ?: AppLanguage.English
+    }
 
     private companion object {
         const val KEY_LANGUAGE = "language"

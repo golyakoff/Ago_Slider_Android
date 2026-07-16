@@ -65,6 +65,8 @@
     <string name="settings_virtual_limit">Virtual limit enabled</string>
     <string name="settings_stealthchop">StealthChop enabled</string>
     <string name="settings_save">SAVE</string>
+    <string name="settings_mm_per_sec">≈ %1$s mm/s</string>
+    <string name="settings_deg_per_sec">≈ %1$s deg/s</string>
     <string name="unit_mm">mm</string>
     <string name="unit_deg">deg</string>
 

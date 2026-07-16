@@ -36,10 +36,10 @@ import kotlin.math.roundToInt
 // ----------------------------------------------------------------------------
 // Reusable per-axis (X, C, B) configuration components.
 //
-// Each card edits a local copy of the device's values and only offers SAVE once
-// that copy differs from what the device reports: an enabled button means there
-// is something unsent. The local copy is keyed on the device values, so it
-// resets whenever the device reports something new.
+// The cards are stateless: SettingsTabContent owns the edited copy of the
+// device's values and decides when a card is dirty, so that a card can also read
+// another card's unsaved edits — the speed card needs the microsteps and the
+// units per step to show what a speed means in mm/s or deg/s.
 // ----------------------------------------------------------------------------
 private val AXES = listOf("X", "C", "B")
 
@@ -70,21 +70,21 @@ fun IntDropdownTriple(
     title: String,
     values: Triple<Int, Int, Int>,
     options: List<Int>,
-    onValueChange: (Int, Int, Int) -> Unit
+    dirty: Boolean,
+    onValueChange: (Triple<Int, Int, Int>) -> Unit,
+    onSave: () -> Unit
 ) {
-    var x by remember(values) { mutableStateOf(values.first) }
-    var c by remember(values) { mutableStateOf(values.second) }
-    var b by remember(values) { mutableStateOf(values.third) }
-
-    ConfigCard(
-        title = title,
-        dirty = Triple(x, c, b) != values,
-        onSave = { onValueChange(x, c, b) }
-    ) {
+    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AxisDropdown(AXES[0], x, options, { x = it }, Modifier.weight(1f))
-            AxisDropdown(AXES[1], c, options, { c = it }, Modifier.weight(1f))
-            AxisDropdown(AXES[2], b, options, { b = it }, Modifier.weight(1f))
+            AxisDropdown(AXES[0], values.first, options, Modifier.weight(1f)) {
+                onValueChange(values.copy(first = it))
+            }
+            AxisDropdown(AXES[1], values.second, options, Modifier.weight(1f)) {
+                onValueChange(values.copy(second = it))
+            }
+            AxisDropdown(AXES[2], values.third, options, Modifier.weight(1f)) {
+                onValueChange(values.copy(third = it))
+            }
         }
     }
 }
@@ -96,20 +96,77 @@ fun IntSliderTriple(
     values: Triple<Int, Int, Int>,
     range: IntRange,
     step: Int,
-    onValueChange: (Int, Int, Int) -> Unit
+    dirty: Boolean,
+    onValueChange: (Triple<Int, Int, Int>) -> Unit,
+    onSave: () -> Unit
 ) {
-    var x by remember(values) { mutableStateOf(values.first) }
-    var c by remember(values) { mutableStateOf(values.second) }
-    var b by remember(values) { mutableStateOf(values.third) }
+    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
+        AxisSlider(
+            axis = AXES[0],
+            value = values.first,
+            range = range,
+            step = step,
+            onValueChange = { onValueChange(values.copy(first = it)) }
+        )
+        AxisSlider(
+            axis = AXES[1],
+            value = values.second,
+            range = range,
+            step = step,
+            onValueChange = { onValueChange(values.copy(second = it)) }
+        )
+        AxisSlider(
+            axis = AXES[2],
+            value = values.third,
+            range = range,
+            step = step,
+            onValueChange = { onValueChange(values.copy(third = it)) }
+        )
+    }
+}
 
-    ConfigCard(
-        title = title,
-        dirty = Triple(x, c, b) != values,
-        onSave = { onValueChange(x, c, b) }
-    ) {
-        AxisSlider(AXES[0], x, range, step) { x = it }
-        AxisSlider(AXES[1], c, range, step) { c = it }
-        AxisSlider(AXES[2], b, range, step) { b = it }
+/**
+ * Like [IntSliderTriple], but each axis also shows what its step rate works out to in the
+ * axis's own unit, which is what the operator actually thinks in.
+ */
+@Composable
+fun AxisSpeedTriple(
+    title: String,
+    values: Triple<Int, Int, Int>,
+    range: IntRange,
+    step: Int,
+    microsteps: Triple<Int, Int, Int>,
+    unitsPerStep: Triple<Float, Float, Float>,
+    axisIsDegrees: Triple<Boolean, Boolean, Boolean>,
+    dirty: Boolean,
+    onValueChange: (Triple<Int, Int, Int>) -> Unit,
+    onSave: () -> Unit
+) {
+    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
+        AxisSlider(
+            axis = AXES[0],
+            value = values.first,
+            range = range,
+            step = step,
+            caption = unitsPerSecondLabel(values.first, microsteps.first, unitsPerStep.first, axisIsDegrees.first),
+            onValueChange = { onValueChange(values.copy(first = it)) }
+        )
+        AxisSlider(
+            axis = AXES[1],
+            value = values.second,
+            range = range,
+            step = step,
+            caption = unitsPerSecondLabel(values.second, microsteps.second, unitsPerStep.second, axisIsDegrees.second),
+            onValueChange = { onValueChange(values.copy(second = it)) }
+        )
+        AxisSlider(
+            axis = AXES[2],
+            value = values.third,
+            range = range,
+            step = step,
+            caption = unitsPerSecondLabel(values.third, microsteps.third, unitsPerStep.third, axisIsDegrees.third),
+            onValueChange = { onValueChange(values.copy(third = it)) }
+        )
     }
 }
 
@@ -118,83 +175,14 @@ fun IntSliderTriple(
 fun AxisUnitTriple(
     title: String,
     values: Triple<Boolean, Boolean, Boolean>,
-    onValueChange: (Boolean, Boolean, Boolean) -> Unit
+    dirty: Boolean,
+    onValueChange: (Triple<Boolean, Boolean, Boolean>) -> Unit,
+    onSave: () -> Unit
 ) {
-    var x by remember(values) { mutableStateOf(values.first) }
-    var c by remember(values) { mutableStateOf(values.second) }
-    var b by remember(values) { mutableStateOf(values.third) }
-
-    ConfigCard(
-        title = title,
-        dirty = Triple(x, c, b) != values,
-        onSave = { onValueChange(x, c, b) }
-    ) {
-        AxisUnitRow(AXES[0], x) { x = it }
-        AxisUnitRow(AXES[1], c) { c = it }
-        AxisUnitRow(AXES[2], b) { b = it }
-    }
-}
-
-@Composable
-fun ConfigTriple(
-    title: String,
-    values: Triple<Int, Int, Int>,
-    onValueChange: (Int, Int, Int) -> Unit
-) {
-    var x by remember(values) { mutableStateOf(values.first.toString()) }
-    var c by remember(values) { mutableStateOf(values.second.toString()) }
-    var b by remember(values) { mutableStateOf(values.third.toString()) }
-
-    val edited = Triple(x.toIntOrNull(), c.toIntOrNull(), b.toIntOrNull())
-
-    ConfigCard(
-        title = title,
-        // Unparsable text is not something we can send, so it does not count as a change
-        dirty = edited.toList().none { it == null } && edited != Triple(values.first, values.second, values.third),
-        onSave = {
-            onValueChange(
-                x.toIntOrNull() ?: values.first,
-                c.toIntOrNull() ?: values.second,
-                b.toIntOrNull() ?: values.third
-            )
-        }
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AxisTextField(AXES[0], x, { x = it }, Modifier.weight(1f))
-            AxisTextField(AXES[1], c, { c = it }, Modifier.weight(1f))
-            AxisTextField(AXES[2], b, { b = it }, Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-fun FloatTriple(
-    title: String,
-    values: Triple<Float, Float, Float>,
-    onValueChange: (Float, Float, Float) -> Unit
-) {
-    var x by remember(values) { mutableStateOf(values.first.toString()) }
-    var c by remember(values) { mutableStateOf(values.second.toString()) }
-    var b by remember(values) { mutableStateOf(values.third.toString()) }
-
-    val edited = Triple(x.toFloatOrNull(), c.toFloatOrNull(), b.toFloatOrNull())
-
-    ConfigCard(
-        title = title,
-        dirty = edited.toList().none { it == null } && edited != Triple(values.first, values.second, values.third),
-        onSave = {
-            onValueChange(
-                x.toFloatOrNull() ?: values.first,
-                c.toFloatOrNull() ?: values.second,
-                b.toFloatOrNull() ?: values.third
-            )
-        }
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AxisTextField(AXES[0], x, { x = it }, Modifier.weight(1f))
-            AxisTextField(AXES[1], c, { c = it }, Modifier.weight(1f))
-            AxisTextField(AXES[2], b, { b = it }, Modifier.weight(1f))
-        }
+    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
+        AxisUnitRow(AXES[0], values.first) { onValueChange(values.copy(first = it)) }
+        AxisUnitRow(AXES[1], values.second) { onValueChange(values.copy(second = it)) }
+        AxisUnitRow(AXES[2], values.third) { onValueChange(values.copy(third = it)) }
     }
 }
 
@@ -202,33 +190,69 @@ fun FloatTriple(
 fun BoolTriple(
     title: String,
     values: Triple<Boolean, Boolean, Boolean>,
-    onValueChange: (Boolean, Boolean, Boolean) -> Unit
+    dirty: Boolean,
+    onValueChange: (Triple<Boolean, Boolean, Boolean>) -> Unit,
+    onSave: () -> Unit
 ) {
-    var x by remember(values) { mutableStateOf(values.first) }
-    var c by remember(values) { mutableStateOf(values.second) }
-    var b by remember(values) { mutableStateOf(values.third) }
-
-    ConfigCard(
-        title = title,
-        dirty = Triple(x, c, b) != values,
-        onSave = { onValueChange(x, c, b) }
-    ) {
+    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("${AXES[0]}: ")
-                Switch(checked = x, onCheckedChange = { x = it })
+                Switch(
+                    checked = values.first,
+                    onCheckedChange = { onValueChange(values.copy(first = it)) }
+                )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("${AXES[1]}: ")
-                Switch(checked = c, onCheckedChange = { c = it })
+                Switch(
+                    checked = values.second,
+                    onCheckedChange = { onValueChange(values.copy(second = it)) }
+                )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("${AXES[2]}: ")
-                Switch(checked = b, onCheckedChange = { b = it })
+                Switch(
+                    checked = values.third,
+                    onCheckedChange = { onValueChange(values.copy(third = it)) }
+                )
             }
+        }
+    }
+}
+
+/**
+ * Free-form per-axis decimals. Unlike the other cards this one keeps its editor state, because
+ * half-typed input ("0.") is not a value the rest of the screen can use; [onValueChange] reports
+ * null until all three fields parse again.
+ */
+@Composable
+fun FloatTriple(
+    title: String,
+    deviceValues: Triple<Float, Float, Float>,
+    dirty: Boolean,
+    onValueChange: (Triple<Float, Float, Float>?) -> Unit,
+    onSave: () -> Unit
+) {
+    var x by remember(deviceValues) { mutableStateOf(deviceValues.first.toString()) }
+    var c by remember(deviceValues) { mutableStateOf(deviceValues.second.toString()) }
+    var b by remember(deviceValues) { mutableStateOf(deviceValues.third.toString()) }
+
+    fun report() {
+        val parsed = listOf(x.toFloatOrNull(), c.toFloatOrNull(), b.toFloatOrNull())
+        onValueChange(
+            if (parsed.any { it == null }) null else Triple(parsed[0]!!, parsed[1]!!, parsed[2]!!)
+        )
+    }
+
+    ConfigCard(title = title, dirty = dirty, onSave = onSave) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AxisTextField(AXES[0], x, { x = it; report() }, Modifier.weight(1f))
+            AxisTextField(AXES[1], c, { c = it; report() }, Modifier.weight(1f))
+            AxisTextField(AXES[2], b, { b = it; report() }, Modifier.weight(1f))
         }
     }
 }
@@ -236,14 +260,35 @@ fun BoolTriple(
 // ----------------------------------------------------------------------------
 // Single-axis controls
 // ----------------------------------------------------------------------------
+
+/**
+ * A step rate in the axis's own unit. The rate is in STEP pulses, i.e. microsteps, while
+ * `units per step` is per full motor step — hence the division.
+ */
+@Composable
+private fun unitsPerSecondLabel(
+    stepsPerSecond: Int,
+    microsteps: Int,
+    unitsPerStep: Float,
+    isDegrees: Boolean
+): String {
+    if (microsteps <= 0) return ""
+    val unitsPerSecond = stepsPerSecond.toFloat() / microsteps * unitsPerStep
+    val formatted = "%.1f".format(unitsPerSecond)
+    return stringResource(
+        if (isDegrees) R.string.settings_deg_per_sec else R.string.settings_mm_per_sec,
+        formatted
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AxisDropdown(
     axis: String,
     value: Int,
     options: List<Int>,
-    onValueChange: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onValueChange: (Int) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -283,7 +328,8 @@ private fun AxisSlider(
     value: Int,
     range: IntRange,
     step: Int,
-    onValueChange: (Int) -> Unit
+    onValueChange: (Int) -> Unit,
+    caption: String? = null
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(axis, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(20.dp))
@@ -295,12 +341,24 @@ private fun AxisSlider(
             steps = (range.last - range.first) / step - 1,
             modifier = Modifier.weight(1f)
         )
-        Text(
-            text = value.toString(),
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.End,
-            modifier = Modifier.width(48.dp)
-        )
+        Column(
+            horizontalAlignment = Alignment.End,
+            modifier = Modifier.width(if (caption == null) 48.dp else 104.dp)
+        ) {
+            Text(
+                text = value.toString(),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.End
+            )
+            if (caption != null) {
+                Text(
+                    text = caption,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    textAlign = TextAlign.End
+                )
+            }
+        }
     }
 }
 
