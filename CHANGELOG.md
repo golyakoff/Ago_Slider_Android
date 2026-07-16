@@ -1,3 +1,9 @@
+# Release 0.1.1
+
+- Faster firmware OTA upload: chunk size now fits a single BLE write (MTU-3) instead of
+  long writes, and the fixed 30 ms per-chunk delay is removed — flow control relies on
+  the firmware (v0.1.2+) acknowledging each chunk after it is written to flash.
+
 # Release 0.1.0
 
 - Device screen split into Motion / Service / Settings tabs with a shared status header.

@@ -343,6 +343,12 @@ class AgoSliderManager(
         writeCharacteristic(invertDirCharacteristic, byteArrayOf(flags.toByte()), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
     }
 
+    /**
+     * Negotiated ATT MTU (suspends until the MTU exchange completes after connect).
+     * OTA chunks must not exceed MTU-3 or Android falls back to slow long writes.
+     */
+    suspend fun awaitNegotiatedMtu(): Int = mtuDeferred.await()
+
     // OTA methods with callback
     fun writeOtaControlCharacteristic(command: ByteArray, callback: (Boolean) -> Unit) {
         writeCharacteristic(otaControlCharacteristic, command, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)

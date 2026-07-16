@@ -247,8 +247,16 @@ class FirmwareRepository @Inject constructor(
             val startSuccess = bluetoothService.sendOtaControl(startCommand)
             if (!startSuccess) throw IOException("Failed to start OTA process")
 
+            // Chunk must fit into a single ATT Write Request (MTU-3), otherwise
+            // Android silently falls back to slow Prepare/Execute long writes.
+            // No pacing delay is needed: the firmware (>= v0.1.2) responds to
+            // each write only after the chunk is written to flash, so awaiting
+            // the write response IS the flow control.
+            val mtu = bluetoothService.getNegotiatedMtu()
+            val chunkSize = (mtu - 3).coerceIn(20, 512)
+
             inputStream = FileInputStream(firmwareFile)
-            val buffer = ByteArray(512)
+            val buffer = ByteArray(chunkSize)
             var totalBytesSent = 0L
             var bytesRead: Int
 
@@ -261,7 +269,6 @@ class FirmwareRepository @Inject constructor(
                 totalBytesSent += bytesRead
                 val progress = (totalBytesSent.toFloat() / firmwareFile.length()) * 100f
                 onProgress(progress.coerceIn(0f, 100f))
-                delay(30)
             }
 
             bluetoothService.sendOtaControl(byteArrayOf(OTA_CMD_END))

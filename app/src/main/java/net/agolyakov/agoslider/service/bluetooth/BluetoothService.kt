@@ -336,6 +336,8 @@ class BluetoothService @Inject constructor(
         }
     }
 
+    suspend fun getNegotiatedMtu(): Int = bleManager.awaitNegotiatedMtu()
+
     // ========================== Connection Management ==========================
 
     fun setShouldMaintainConnection(shouldMaintain: Boolean) {
