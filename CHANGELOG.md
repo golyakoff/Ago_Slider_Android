@@ -1,3 +1,12 @@
+# Release 0.1.4
+
+- The device screen reconnects automatically when the slider drops the link — e.g. right
+  after a firmware OTA update reboots it; no more manual reconnecting.
+- The action bar shows "<slider name> <fw version>" (e.g. "My slider v0.1.3"); the
+  "Slider |" prefix and the untranslatable "FW x.y.z" header column are gone.
+- The app is called just "Slider", and the motor switch reads "Enable motors" /
+  "Включить моторы".
+
 # Release 0.1.3
 
 - Fixed: rotating the screen (or switching the in-app language) no longer drops the BLE

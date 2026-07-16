@@ -26,8 +26,8 @@ android {
         applicationId = "net.agolyakov.agoslider"
         minSdk = 28     // Android 9
         targetSdk = 36  // Android 16
-        versionCode = 5
-        versionName = "0.1.3"
+        versionCode = 6
+        versionName = "0.1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
