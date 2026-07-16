@@ -26,9 +26,13 @@ them without migrating `applicationVariants.all` in `app/build.gradle.kts` first
 ./gradlew connectedAndroidTest   # instrumented tests on a connected device/emulator (app/src/androidTest)
 ```
 
+`JAVA_HOME` is not set globally on this machine — export it before gradle runs:
+`export JAVA_HOME="C:\\Program Files\\Android\\Android Studio\\jbr"`.
+
 CI (`.github/workflows/release.yml`) builds a signed release APK and publishes a GitHub Release
 whenever a `v*.*.*` tag is pushed; the changelog entry is read from `CHANGELOG.md` (format:
-`# Release X.Y.Z` heading followed by bullet lines).
+`# Release X.Y.Z` heading followed by bullet lines). See also the project skills: `release`
+(version bump + tagging + CI) and `install` (build + adb install on a device).
 
 ## Architecture
 
