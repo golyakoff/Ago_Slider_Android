@@ -108,13 +108,13 @@ fun DeviceScreen(
     val moveC by viewModel.moveC.collectAsState()
     val moveB by viewModel.moveB.collectAsState()
 
-    val connectionStateString = when (connectionState) {
-        is ConnectionState.Connecting -> "Connecting"
-        is ConnectionState.Connected -> "Connected"
-        is ConnectionState.Ready -> "Ready"
-        is ConnectionState.Disconnecting -> "Disconnecting"
-        is ConnectionState.Disconnected -> "Disconnected"
-        is ConnectionState.Error -> "Error: ${(connectionState as ConnectionState.Error).message}"
+    val connectionStateString = when (val state = connectionState) {
+        is ConnectionState.Connecting -> stringResource(R.string.state_connecting)
+        is ConnectionState.Connected -> stringResource(R.string.state_connected)
+        is ConnectionState.Ready -> stringResource(R.string.state_ready)
+        is ConnectionState.Disconnecting -> stringResource(R.string.state_disconnecting)
+        is ConnectionState.Disconnected -> stringResource(R.string.state_disconnected)
+        is ConnectionState.Error -> stringResource(R.string.state_error, state.message)
     }
 
     DeviceScreenContent(
@@ -306,12 +306,12 @@ private fun DeviceHeader(
                 modifier = Modifier.weight(1f)
             )
             HeaderStatusField(
-                text = "FW $firmwareVersion",
+                text = stringResource(R.string.device_firmware, firmwareVersion),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f)
             )
             HeaderStatusField(
-                text = "Battery ${batteryLevel * 100 / 255}%",
+                text = stringResource(R.string.device_battery, batteryLevel * 100 / 255),
                 textAlign = TextAlign.End,
                 modifier = Modifier.weight(1f)
             )
@@ -320,7 +320,7 @@ private fun DeviceHeader(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Motors enabled", modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.device_motors_enabled), modifier = Modifier.weight(1f))
             Switch(checked = motorsEnabled, onCheckedChange = onMotorsEnabledChange)
         }
     }

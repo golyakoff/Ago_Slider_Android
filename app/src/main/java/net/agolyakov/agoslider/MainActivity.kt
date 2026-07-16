@@ -3,6 +3,7 @@ package net.agolyakov.agoslider
 import android.Manifest
 import android.app.Activity.RESULT_CANCELED
 import android.bluetooth.BluetoothAdapter
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -19,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
+import net.agolyakov.agoslider.data.local.LanguagePreferences
+import net.agolyakov.agoslider.data.local.withAppLanguage
 import net.agolyakov.agoslider.navigation.SetupNavGraph
 import net.agolyakov.agoslider.service.bluetooth.BluetoothService
 import net.agolyakov.agoslider.ui.viewmodel.MyRequestPermission
@@ -30,9 +33,19 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var bluetoothService: BluetoothService
 
+    // Apply the in-app language before anything resolves a resource; switching it recreates
+    // the activity, which runs this again
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase.withAppLanguage(LanguagePreferences(newBase).language))
+    }
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // The action bar title comes from the manifest label, which the system resolves in its
+        // own locale — set it from our resources so it follows the in-app language
+        title = getString(R.string.app_full_name)
 
         // Enable ScrollCapture for scrolling screenshots (Android 12+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

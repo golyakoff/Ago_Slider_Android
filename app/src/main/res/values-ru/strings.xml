@@ -1,0 +1,94 @@
+<resources>
+    <string name="app_name">Слайдер</string>
+    <string name="app_full_name">Слайдер | Bluetooth LE клиент</string>
+    <string name="device_title">Слайдер | %1$s</string>
+
+    <!-- Home screen -->
+    <string name="rename">Переименовать</string>
+    <string name="rename_device">Переименовать устройство</string>
+    <string name="dialog_save">Сохранить</string>
+    <string name="dialog_cancel">Отмена</string>
+    <string name="dialog_device_name">Наименование устройства</string>
+    <string name="app_version">Версия %1$s</string>
+    <string name="app_update_available">Доступна новая версия %1$s</string>
+    <string name="app_update_download">Скачать</string>
+
+    <!-- Device header -->
+    <!-- device_firmware stays "FW %1$s": the header column is a third of the row and a
+         translated word would leave no room for the version itself -->
+    <string name="device_battery">Батарея %1$d%%</string>
+    <string name="device_motors_enabled">Моторы включены</string>
+    <string name="state_ready">Готов</string>
+    <string name="state_connecting">Подключение</string>
+    <string name="state_connected">Подключено</string>
+    <string name="state_disconnecting">Отключение</string>
+    <string name="state_disconnected">Отключено</string>
+    <string name="state_error">Ошибка: %1$s</string>
+
+    <!-- Tabs -->
+    <string name="device_tab_motion">Движение</string>
+    <string name="device_tab_service">Сервис</string>
+    <string name="device_tab_settings">Настройки</string>
+
+    <!-- Motion tab -->
+    <string name="motion_homing">Поиск нуля</string>
+    <string name="motion_home_x">Ноль X</string>
+    <string name="motion_home_c">Ноль C</string>
+    <string name="motion_home_b">Ноль B</string>
+    <string name="motion_home_all">Все оси</string>
+    <string name="motion_home_requested">Запрошено:</string>
+    <string name="motion_homed_status">Выполнено:</string>
+    <string name="answer_yes">ДА</string>
+    <string name="answer_no">НЕТ</string>
+
+    <!-- Service tab -->
+    <string name="service_move_title">Относительное перемещение (шаги)</string>
+    <string name="service_move_button">Переместить</string>
+    <string name="service_limit_switches">Концевики: X=%1$s, C=%2$s, B=%3$s</string>
+    <string name="service_power">Питание: %1$s В, %2$s А, %3$s Вт</string>
+    <string name="service_power_string">Строка питания: %1$s</string>
+    <string name="service_firmware_title">Прошивка</string>
+    <string name="service_firmware_version">Текущая версия: %1$s</string>
+    <string name="service_check_updates">Проверить обновления</string>
+
+    <!-- Settings tab -->
+    <string name="settings_run_current">Рабочий ток (мА)</string>
+    <string name="settings_hold_current">Ток удержания (мА)</string>
+    <string name="settings_microsteps">Микрошаги</string>
+    <string name="settings_invert_dir">Инверсия направления</string>
+    <string name="settings_axis_unit">Единицы измерения оси</string>
+    <string name="settings_units_per_step">Единиц на шаг (мм/шаг или град/шаг)</string>
+    <string name="settings_axis_accel">Ускорение оси (шагов/с²)</string>
+    <string name="settings_axis_speed">Скорость оси по умолчанию (шагов/с)</string>
+    <string name="settings_virtual_limit">Виртуальный лимит включён</string>
+    <string name="settings_stealthchop">StealthChop включён</string>
+    <string name="settings_save">СОХРАНИТЬ</string>
+    <string name="unit_mm">мм</string>
+    <string name="unit_deg">град</string>
+
+    <!-- Firmware update screen -->
+    <string name="fw_title">Обновление прошивки</string>
+    <string name="fw_check">Искать обновления</string>
+    <string name="fw_checking">Проверяем доступность обновлений…</string>
+    <string name="fw_update_available">Доступно обновление!</string>
+    <string name="fw_current_version">Текущая версия: %1$s</string>
+    <string name="fw_new_version">Новая версия: %1$s</string>
+    <string name="fw_update">Обновить</string>
+    <string name="fw_back">Назад</string>
+    <string name="fw_up_to_date">У вас самая актуальная прошивка</string>
+    <string name="fw_version">Версия: %1$s</string>
+    <string name="fw_size">Размер: %1$d КБ</string>
+    <string name="fw_downloading">Скачивание: %1$s%%</string>
+    <string name="fw_ready">Прошивка готова</string>
+    <string name="fw_install">Установить прошивку</string>
+    <string name="fw_installing">Установка: %1$s%%</string>
+    <string name="fw_processing">Выполняется обновление…</string>
+    <string name="fw_success">Обновление завершено!</string>
+    <string name="fw_done">Готово</string>
+    <string name="fw_error">Ошибка</string>
+    <string name="fw_retry">Попробовать снова</string>
+
+    <!-- Permissions -->
+    <string name="perm_bluetooth_is_off">Приложение требует включения Bluetooth</string>
+    <string name="perm_not_enough_permissions">Приложение не получило необходимых разрешений</string>
+</resources>

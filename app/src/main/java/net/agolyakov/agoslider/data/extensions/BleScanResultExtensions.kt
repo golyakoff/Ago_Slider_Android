@@ -5,7 +5,7 @@ import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 
 fun ScanResult.toBleDevice(): AgoSliderDevice {
     return AgoSliderDevice(
-        deviceName = this.scanRecord?.deviceName ?: "<без имени>",
+        deviceName = this.scanRecord?.deviceName ?: "<unnamed>",
         macAddress = this.device.address
     )
 }

@@ -92,7 +92,20 @@ Standard MVVM + Hilt DI + single-Activity Compose Navigation, layered as
 
 - **Persistence** — `AgoSliderPreferences` (SharedPreferences-backed, implements
   `domain.repository.PreferencesRepository`) stores only user-assigned friendly names per MAC
-  address; there is no other local persistence (no Room/DataStore).
+  address; there is no other local persistence (no Room/DataStore). Its file is read back as a
+  whole (`getAllFriendlyNames`), so anything that is not a MAC-to-name entry belongs elsewhere —
+  the language choice lives in its own file, see below.
+
+- **Localization** — UI strings live in `res/values/strings.xml` (English, the default) and
+  `res/values-ru/strings.xml`; nothing user-facing should be hardcoded in a composable. The
+  in-app language is independent of the system locale: `LanguagePreferences` (own
+  SharedPreferences file) stores the choice, `MainActivity.attachBaseContext` wraps the base
+  context via `Context.withAppLanguage`, and the switcher on the Home screen recreates the
+  activity to re-resolve resources. Two consequences worth knowing: the action bar title is set
+  in code (`MainActivity.onCreate`, and per device in `DeviceScreen`) because the system
+  resolves the manifest label in its own locale, and the launcher icon label cannot follow the
+  in-app choice at all. Strings produced outside the activity's context (e.g.
+  `FirmwareRepository` progress messages) stay English.
 
 ## Known issues to be aware of
 

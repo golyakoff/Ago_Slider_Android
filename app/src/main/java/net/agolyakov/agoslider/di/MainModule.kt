@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import net.agolyakov.agoslider.BuildConfig
 import net.agolyakov.agoslider.data.local.AgoSliderPreferences
+import net.agolyakov.agoslider.data.local.LanguagePreferences
 import net.agolyakov.agoslider.data.repository.FirmwareRepository
 import net.agolyakov.agoslider.data.repository.GithubRepository
 import net.agolyakov.agoslider.domain.repository.PreferencesRepository
@@ -58,6 +59,12 @@ object MainModule {
     fun providePreferencesRepository(
         preferences: AgoSliderPreferences
     ): PreferencesRepository = preferences
+
+    @Provides
+    @Singleton
+    fun provideLanguagePreferences(
+        @ApplicationContext context: Context
+    ): LanguagePreferences = LanguagePreferences(context)
 
     // Region: Network
     @Provides

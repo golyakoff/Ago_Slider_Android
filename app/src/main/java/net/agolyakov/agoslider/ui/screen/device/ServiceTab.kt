@@ -51,7 +51,10 @@ fun ServiceTabContent(
         // Move command
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(8.dp)) {
-                Text("Move relative (steps)", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(R.string.service_move_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = moveX.toString(),
@@ -72,16 +75,32 @@ fun ServiceTabContent(
                         modifier = Modifier.weight(1f)
                     )
                 }
-                Button(onClick = onSendMoveCommand) { Text("Move") }
+                Button(onClick = onSendMoveCommand) {
+                    Text(stringResource(R.string.service_move_button))
+                }
             }
         }
 
         HorizontalDivider()
 
         // Read-only hardware status
-        Text("Limit switches: X=${limitStatus.first}, C=${limitStatus.second}, B=${limitStatus.third}")
-        Text("Power: ${powerInfo.first}V, ${powerInfo.second}A, ${powerInfo.third}W")
-        Text("Power string: $powerInfoString")
+        Text(
+            stringResource(
+                R.string.service_limit_switches,
+                limitStatus.first.toString(),
+                limitStatus.second.toString(),
+                limitStatus.third.toString()
+            )
+        )
+        Text(
+            stringResource(
+                R.string.service_power,
+                powerInfo.first.toString(),
+                powerInfo.second.toString(),
+                powerInfo.third.toString()
+            )
+        )
+        Text(stringResource(R.string.service_power_string, powerInfoString))
 
         HorizontalDivider()
 

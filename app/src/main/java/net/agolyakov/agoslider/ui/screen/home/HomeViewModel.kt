@@ -18,6 +18,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.data.extensions.toBleDevice
+import net.agolyakov.agoslider.data.local.AppLanguage
+import net.agolyakov.agoslider.data.local.LanguagePreferences
 import net.agolyakov.agoslider.data.repository.AppUpdateRepository
 import net.agolyakov.agoslider.service.bluetooth.BluetoothAdapterProvider
 import net.agolyakov.agoslider.service.bluetooth.BluetoothService
@@ -32,8 +34,16 @@ class HomeViewModel @Inject constructor(
     bluetoothAdapterProvider: BluetoothAdapterProvider,
     private val preferencesRepository: PreferencesRepository,
     private val loadDeviceWithNameUseCase: LoadDeviceWithNameUseCase,
+    private val languagePreferences: LanguagePreferences,
     appUpdateRepository: AppUpdateRepository
 ) : ViewModel() {
+    val language: AppLanguage get() = languagePreferences.language
+
+    /** Stored only — the caller recreates the activity to pick the new language up. */
+    fun setLanguage(language: AppLanguage) {
+        languagePreferences.language = language
+    }
+
     private val foundDevices = HashMap<String, AgoSliderDevice>()
     private val _devices: MutableLiveData<List<AgoSliderDevice>> = MutableLiveData()
     val devices: LiveData<List<AgoSliderDevice>> get() = _devices

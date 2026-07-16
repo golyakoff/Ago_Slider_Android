@@ -1,5 +1,7 @@
 package net.agolyakov.agoslider.ui.screen.home
 
+import android.app.Activity
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,8 +15,10 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -22,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import net.agolyakov.agoslider.R
+import net.agolyakov.agoslider.data.local.AppLanguage
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.data.repository.AppUpdateRepository
 import net.agolyakov.agoslider.navigation.Screen
@@ -35,6 +40,7 @@ fun HomeScreen(
     val devices by homeViewModel.devices.observeAsState(emptyList())
     val appUpdate by homeViewModel.appUpdate.collectAsState()
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
 
     var showRenameDialog by remember { mutableStateOf(false) }
     var deviceToRename by remember { mutableStateOf<AgoSliderDevice?>(null) }
@@ -43,12 +49,18 @@ fun HomeScreen(
         devices = devices,
         appVersion = homeViewModel.appVersion,
         appUpdate = appUpdate,
+        language = homeViewModel.language,
         navController = navController,
         onRenameClick = { device ->
             deviceToRename = device
             showRenameDialog = true
         },
-        onDownloadUpdateClick = { uriHandler.openUri(it.releaseUrl) }
+        onDownloadUpdateClick = { uriHandler.openUri(it.releaseUrl) },
+        onLanguageClick = { language ->
+            homeViewModel.setLanguage(language)
+            // Resources are bound to the activity's context, so restart it to re-resolve them
+            (context as? Activity)?.recreate()
+        }
     )
 
     if (showRenameDialog && deviceToRename != null) {
@@ -70,9 +82,11 @@ private fun HomeContent(
     devices: List<AgoSliderDevice>,
     appVersion: String,
     appUpdate: AppUpdateRepository.AppUpdate?,
+    language: AppLanguage,
     navController: NavHostController,
     onRenameClick: (AgoSliderDevice) -> Unit,
-    onDownloadUpdateClick: (AppUpdateRepository.AppUpdate) -> Unit
+    onDownloadUpdateClick: (AppUpdateRepository.AppUpdate) -> Unit,
+    onLanguageClick: (AppLanguage) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -89,7 +103,9 @@ private fun HomeContent(
         AppVersionCard(
             version = appVersion,
             update = appUpdate,
-            onDownloadClick = onDownloadUpdateClick
+            language = language,
+            onDownloadClick = onDownloadUpdateClick,
+            onLanguageClick = onLanguageClick
         )
     }
 }
@@ -187,7 +203,9 @@ fun Device(
 private fun AppVersionCard(
     version: String,
     update: AppUpdateRepository.AppUpdate?,
-    onDownloadClick: (AppUpdateRepository.AppUpdate) -> Unit
+    language: AppLanguage,
+    onDownloadClick: (AppUpdateRepository.AppUpdate) -> Unit,
+    onLanguageClick: (AppLanguage) -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -199,35 +217,81 @@ private fun AppVersionCard(
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp)
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.app_version, version),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
-                if (update != null) {
+        Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(R.string.app_update_available, update.version),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        text = stringResource(R.string.app_version, version),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.outline
                     )
+                    if (update != null) {
+                        Text(
+                            text = stringResource(R.string.app_update_available, update.version),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                if (update != null) {
+                    Spacer(Modifier.width(8.dp))
+
+                    Button(onClick = { onDownloadClick(update) }) {
+                        Text(stringResource(R.string.app_update_download))
+                    }
                 }
             }
 
-            if (update != null) {
-                Spacer(Modifier.width(8.dp))
-
-                Button(onClick = { onDownloadClick(update) }) {
-                    Text(stringResource(R.string.app_update_download))
-                }
-            }
+            LanguageLinks(language = language, onLanguageClick = onLanguageClick)
         }
     }
+}
+
+@Composable
+private fun LanguageLinks(
+    language: AppLanguage,
+    onLanguageClick: (AppLanguage) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        LanguageLink(
+            labelRes = R.string.lang_english,
+            selected = language == AppLanguage.English,
+            onClick = { onLanguageClick(AppLanguage.English) }
+        )
+        Text(
+            text = " | ",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.outline
+        )
+        LanguageLink(
+            labelRes = R.string.lang_russian,
+            selected = language == AppLanguage.Russian,
+            onClick = { onLanguageClick(AppLanguage.Russian) }
+        )
+    }
+}
+
+// The active language is not a link: bold, unclickable, and in the text colour
+@Composable
+private fun LanguageLink(
+    @StringRes labelRes: Int,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Text(
+        text = stringResource(labelRes),
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+        color = if (selected) {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        } else {
+            MaterialTheme.colorScheme.primary
+        },
+        textDecoration = if (selected) null else TextDecoration.Underline,
+        modifier = if (selected) Modifier else Modifier.clickable(onClick = onClick)
+    )
 }
 
 @Composable
@@ -295,9 +359,11 @@ private fun HomeContentPreview(darkTheme: Boolean, appUpdate: AppUpdateRepositor
             devices = previewDeviceList,
             appVersion = "v0.1.1",
             appUpdate = appUpdate,
+            language = AppLanguage.English,
             navController = rememberNavController(),
             onRenameClick = {},
-            onDownloadUpdateClick = {}
+            onDownloadUpdateClick = {},
+            onLanguageClick = {}
         )
     }
 }

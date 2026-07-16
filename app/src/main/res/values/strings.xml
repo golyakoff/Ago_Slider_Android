@@ -1,21 +1,96 @@
 <resources>
-    <string name="app_name">Слайдер</string>
-    <string name="app_full_name">Слайдер | Bluetooth LE клиент</string>
-    <string name="device_title">Слайдер | %1$s</string>
-    <string name="device_tab_motion">Движение</string>
-    <string name="device_tab_service">Сервис</string>
-    <string name="device_tab_settings">Настройки</string>
-    <string name="service_firmware_title">Прошивка</string>
-    <string name="service_firmware_version">Текущая версия: %1$s</string>
-    <string name="service_check_updates">Проверить обновления</string>
-    <string name="app_version">Версия %1$s</string>
-    <string name="app_update_available">Доступна новая версия %1$s</string>
-    <string name="app_update_download">Скачать</string>
-    <string name="perm_bluetooth_is_off">Приложение требует включения Bluetooth</string>
-    <string name="perm_not_enough_permissions">Приложение не получило необходимых разрешений</string>
-    <string name="rename">Переименовать</string>
-    <string name="rename_device">Переименовать устройство</string>
-    <string name="dialog_save">Сохранить</string>
-    <string name="dialog_cancel">Отмена</string>
-    <string name="dialog_device_name">Наименование устройства</string>
+    <string name="app_name">Slider</string>
+    <string name="app_full_name">Slider | Bluetooth LE client</string>
+    <string name="device_title">Slider | %1$s</string>
+
+    <!-- Home screen -->
+    <string name="rename">Rename</string>
+    <string name="rename_device">Rename device</string>
+    <string name="dialog_save">Save</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_device_name">Device name</string>
+    <string name="app_version">Version %1$s</string>
+    <string name="app_update_available">New version %1$s available</string>
+    <string name="app_update_download">Download</string>
+    <string name="lang_english">English</string>
+    <string name="lang_russian">Русский</string>
+
+    <!-- Device header -->
+    <string name="device_firmware">FW %1$s</string>
+    <string name="device_battery">Battery %1$d%%</string>
+    <string name="device_motors_enabled">Motors enabled</string>
+    <string name="state_ready">Ready</string>
+    <string name="state_connecting">Connecting</string>
+    <string name="state_connected">Connected</string>
+    <string name="state_disconnecting">Disconnecting</string>
+    <string name="state_disconnected">Disconnected</string>
+    <string name="state_error">Error: %1$s</string>
+
+    <!-- Tabs -->
+    <string name="device_tab_motion">Motion</string>
+    <string name="device_tab_service">Service</string>
+    <string name="device_tab_settings">Settings</string>
+
+    <!-- Motion tab -->
+    <string name="motion_homing">Homing</string>
+    <string name="motion_home_x">Home X</string>
+    <string name="motion_home_c">Home C</string>
+    <string name="motion_home_b">Home B</string>
+    <string name="motion_home_all">Home All</string>
+    <string name="motion_home_requested">Home requested:</string>
+    <string name="motion_homed_status">Homed status:</string>
+    <string name="motion_axes_state">X=%1$s, C=%2$s, B=%3$s</string>
+    <string name="answer_yes">YES</string>
+    <string name="answer_no">NO</string>
+
+    <!-- Service tab -->
+    <string name="service_move_title">Move relative (steps)</string>
+    <string name="service_move_button">Move</string>
+    <string name="service_limit_switches">Limit switches: X=%1$s, C=%2$s, B=%3$s</string>
+    <string name="service_power">Power: %1$s V, %2$s A, %3$s W</string>
+    <string name="service_power_string">Power string: %1$s</string>
+    <string name="service_firmware_title">Firmware</string>
+    <string name="service_firmware_version">Current version: %1$s</string>
+    <string name="service_check_updates">Check for updates</string>
+
+    <!-- Settings tab -->
+    <string name="settings_run_current">Run current (mA)</string>
+    <string name="settings_hold_current">Hold current (mA)</string>
+    <string name="settings_microsteps">Microsteps</string>
+    <string name="settings_invert_dir">Invert direction</string>
+    <string name="settings_axis_unit">Axis unit</string>
+    <string name="settings_units_per_step">Units per step (mm/step or deg/step)</string>
+    <string name="settings_axis_accel">Axis acceleration (steps/sec²)</string>
+    <string name="settings_axis_speed">Default axis speed (steps/sec)</string>
+    <string name="settings_virtual_limit">Virtual limit enabled</string>
+    <string name="settings_stealthchop">StealthChop enabled</string>
+    <string name="settings_save">SAVE</string>
+    <string name="unit_mm">mm</string>
+    <string name="unit_deg">deg</string>
+
+    <!-- Firmware update screen -->
+    <string name="fw_title">Firmware update</string>
+    <string name="fw_check">Check for updates</string>
+    <string name="fw_checking">Checking for updates…</string>
+    <string name="fw_update_available">Update available!</string>
+    <string name="fw_current_version">Current version: %1$s</string>
+    <string name="fw_new_version">New version: %1$s</string>
+    <string name="fw_update">Update</string>
+    <string name="fw_back">Back</string>
+    <string name="fw_up_to_date">Your firmware is up to date</string>
+    <string name="fw_version">Version: %1$s</string>
+    <string name="fw_size">Size: %1$d KB</string>
+    <string name="fw_downloading">Downloading: %1$s%%</string>
+    <string name="fw_ready">Firmware ready</string>
+    <string name="fw_install">Install firmware</string>
+    <string name="fw_installing">Installing: %1$s%%</string>
+    <string name="fw_processing">Update in progress…</string>
+    <string name="fw_success">Update complete!</string>
+    <string name="fw_done">Done</string>
+    <string name="fw_error">Error</string>
+    <string name="fw_retry">Try again</string>
+
+    <!-- Permissions -->
+    <string name="perm_bluetooth_is_off">The app requires Bluetooth to be turned on</string>
+    <string name="perm_not_enough_permissions">The app was not granted the required permissions</string>
 </resources>
