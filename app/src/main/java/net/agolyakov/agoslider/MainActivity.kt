@@ -45,7 +45,7 @@ class MainActivity : ComponentActivity() {
 
         // The action bar title comes from the manifest label, which the system resolves in its
         // own locale — set it from our resources so it follows the in-app language
-        title = getString(R.string.app_full_name)
+        title = getString(R.string.app_name)
 
         // Enable ScrollCapture for scrolling screenshots (Android 12+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

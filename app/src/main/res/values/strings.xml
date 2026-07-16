@@ -1,7 +1,5 @@
 ﻿<resources>
     <string name="app_name">Slider</string>
-    <string name="app_full_name">Slider | Bluetooth LE client</string>
-    <string name="device_title">Slider | %1$s</string>
 
     <!-- Home screen -->
     <string name="rename">Rename</string>
@@ -16,9 +14,8 @@
     <string name="lang_russian">Русский</string>
 
     <!-- Device header -->
-    <string name="device_firmware">FW %1$s</string>
     <string name="device_battery">Battery %1$d%%</string>
-    <string name="device_motors_enabled">Motors enabled</string>
+    <string name="device_motors_enabled">Enable motors</string>
     <string name="state_ready">Ready</string>
     <string name="state_connecting">Connecting</string>
     <string name="state_connected">Connected</string>

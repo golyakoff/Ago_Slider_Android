@@ -1,7 +1,5 @@
 ﻿<resources>
     <string name="app_name">Слайдер</string>
-    <string name="app_full_name">Слайдер | Bluetooth LE клиент</string>
-    <string name="device_title">Слайдер | %1$s</string>
 
     <!-- Home screen -->
     <string name="rename">Переименовать</string>
@@ -14,10 +12,8 @@
     <string name="app_update_download">Скачать</string>
 
     <!-- Device header -->
-    <!-- device_firmware stays "FW %1$s": the header column is a third of the row and a
-         translated word would leave no room for the version itself -->
     <string name="device_battery">Батарея %1$d%%</string>
-    <string name="device_motors_enabled">Моторы включены</string>
+    <string name="device_motors_enabled">Включить моторы</string>
     <string name="state_ready">Готов</string>
     <string name="state_connecting">Подключение</string>
     <string name="state_connected">Подключено</string>
