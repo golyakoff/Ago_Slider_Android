@@ -37,6 +37,7 @@ import net.agolyakov.agoslider.R
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.data.model.ble.ConnectionState
 import net.agolyakov.agoslider.data.model.ble.HomeStatus
+import net.agolyakov.agoslider.navigation.Screen
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
 
 // ----------------------------------------------------------------------------
@@ -137,7 +138,8 @@ fun DeviceScreen(
         onAxisAccelChange = viewModel::setAxisAccel,
         onVirtualLimitChange = viewModel::setVirtualLimit,
         onStealthChopChange = viewModel::setStealthChop,
-        onInvertDirChange = viewModel::setInvertDir
+        onInvertDirChange = viewModel::setInvertDir,
+        onCheckFirmwareUpdates = { navController.navigate(Screen.FirmwareUpdate.route) }
     )
 }
 
@@ -184,6 +186,7 @@ fun DeviceScreenContent(
     onVirtualLimitChange: (Boolean, Boolean, Boolean) -> Unit,
     onStealthChopChange: (Boolean, Boolean, Boolean) -> Unit,
     onInvertDirChange: (Boolean, Boolean, Boolean) -> Unit,
+    onCheckFirmwareUpdates: () -> Unit = {},
     initialTab: DeviceTab = DeviceTab.Motion
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
@@ -231,10 +234,12 @@ fun DeviceScreenContent(
                     limitStatus = limitStatus,
                     powerInfo = powerInfo,
                     powerInfoString = powerInfoString,
+                    firmwareVersion = firmwareVersion,
                     onMoveXChange = onMoveXChange,
                     onMoveCChange = onMoveCChange,
                     onMoveBChange = onMoveBChange,
-                    onSendMoveCommand = onSendMoveCommand
+                    onSendMoveCommand = onSendMoveCommand,
+                    onCheckFirmwareUpdates = onCheckFirmwareUpdates
                 )
 
                 DeviceTab.Settings -> SettingsTabContent(

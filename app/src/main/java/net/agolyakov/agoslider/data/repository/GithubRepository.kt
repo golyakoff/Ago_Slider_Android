@@ -22,7 +22,7 @@ class GithubRepository @Inject constructor(
     suspend fun getFirmwareAsset(version: String? = null): GithubAsset {
         val release = getLatestRelease()
         return release.assets.firstOrNull { asset ->
-            asset.name.endsWith("_debug_4mb_fw.bin", ignoreCase = true) &&
+            asset.name.endsWith("_debug_16mb_fw.bin", ignoreCase = true) &&
                     (version == null || asset.name.contains(version, ignoreCase = true))
         } ?: throw IOException("No releases found")
     }

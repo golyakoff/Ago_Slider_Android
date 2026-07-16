@@ -71,7 +71,7 @@ class FirmwareRepository @Inject constructor(
     ): UpdateState {
         return withContext(Dispatchers.IO) {
             try {
-                val asset = release.assets.first { it.name.endsWith("_release_4mb_fw.bin") }
+                val asset = release.assets.first { it.name.endsWith("_release_16mb_fw.bin") }
                 val firmwareFile = downloadFirmwareAsset(asset, onProgress)
                 validateFirmware(firmwareFile, asset)
                 UpdateState.ReadyToInstall(firmwareFile, release)

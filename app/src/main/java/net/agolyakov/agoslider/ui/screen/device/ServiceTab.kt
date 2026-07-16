@@ -16,8 +16,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import net.agolyakov.agoslider.R
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
 
 // ----------------------------------------------------------------------------
@@ -32,10 +34,12 @@ fun ServiceTabContent(
     limitStatus: Triple<Boolean, Boolean, Boolean>,
     powerInfo: Triple<Float, Float, Float>,
     powerInfoString: String,
+    firmwareVersion: String,
     onMoveXChange: (Int) -> Unit,
     onMoveCChange: (Int) -> Unit,
     onMoveBChange: (Int) -> Unit,
-    onSendMoveCommand: () -> Unit
+    onSendMoveCommand: () -> Unit,
+    onCheckFirmwareUpdates: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -78,6 +82,22 @@ fun ServiceTabContent(
         Text("Limit switches: X=${limitStatus.first}, C=${limitStatus.second}, B=${limitStatus.third}")
         Text("Power: ${powerInfo.first}V, ${powerInfo.second}A, ${powerInfo.third}W")
         Text("Power string: $powerInfoString")
+
+        HorizontalDivider()
+
+        // Firmware update
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(
+                    stringResource(R.string.service_firmware_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(stringResource(R.string.service_firmware_version, firmwareVersion))
+                Button(onClick = onCheckFirmwareUpdates) {
+                    Text(stringResource(R.string.service_check_updates))
+                }
+            }
+        }
     }
 }
 
@@ -94,10 +114,12 @@ private fun ServiceTabPreview(darkTheme: Boolean) {
             limitStatus = Triple(false, true, false),
             powerInfo = Triple(21.48f, 0.082f, 1.76f),
             powerInfoString = "21.48V 0.082A 1.76W",
+            firmwareVersion = "v0.1.0",
             onMoveXChange = {},
             onMoveCChange = {},
             onMoveBChange = {},
-            onSendMoveCommand = {}
+            onSendMoveCommand = {},
+            onCheckFirmwareUpdates = {}
         )
     }
 }

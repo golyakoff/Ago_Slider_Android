@@ -89,5 +89,6 @@ Standard MVVM + Hilt DI + single-Activity Compose Navigation, layered as
 - A GitHub PAT was previously hardcoded in `di/MainModule.kt` and **remains in git history**
   (commits before the cleanup) — it must be revoked on GitHub. The token is now optional and
   read from `local.properties` (`github.token`) via `BuildConfig.GITHUB_TOKEN`.
-- The firmware repo (`golyakoff/Ago_Slider_ESP32`) has no GitHub Releases yet; the update
-  check in `FirmwareRepository` expects assets named `*_release_4mb_fw.bin`.
+- The firmware repo (`golyakoff/Ago_Slider_ESP32`) publishes releases via its own tag-driven
+  workflow with assets `ago_slider_{debug,release}_16mb_fw.bin`; the update check in
+  `FirmwareRepository` filters on the `*_release_16mb_fw.bin` suffix — keep the two in sync.
