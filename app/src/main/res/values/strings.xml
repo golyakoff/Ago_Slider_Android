@@ -7,6 +7,9 @@
     <string name="service_firmware_title">Прошивка</string>
     <string name="service_firmware_version">Текущая версия: %1$s</string>
     <string name="service_check_updates">Проверить обновления</string>
+    <string name="app_version">Версия %1$s</string>
+    <string name="app_update_available">Доступна новая версия %1$s</string>
+    <string name="app_update_download">Скачать</string>
     <string name="perm_bluetooth_is_off">Приложение требует включения Bluetooth</string>
     <string name="perm_not_enough_permissions">Приложение не получило необходимых разрешений</string>
     <string name="rename">Переименовать</string>

@@ -8,25 +8,49 @@ import androidx.annotation.RequiresPermission
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.data.extensions.toBleDevice
+import net.agolyakov.agoslider.data.repository.AppUpdateRepository
 import net.agolyakov.agoslider.service.bluetooth.BluetoothAdapterProvider
 import net.agolyakov.agoslider.service.bluetooth.BluetoothService
 import net.agolyakov.agoslider.domain.repository.PreferencesRepository
 import net.agolyakov.agoslider.domain.usecase.LoadDeviceWithNameUseCase
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.minutes
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     val bluetoothService: BluetoothService,
     bluetoothAdapterProvider: BluetoothAdapterProvider,
     private val preferencesRepository: PreferencesRepository,
-    private val loadDeviceWithNameUseCase: LoadDeviceWithNameUseCase
+    private val loadDeviceWithNameUseCase: LoadDeviceWithNameUseCase,
+    appUpdateRepository: AppUpdateRepository
 ) : ViewModel() {
     private val foundDevices = HashMap<String, AgoSliderDevice>()
     private val _devices: MutableLiveData<List<AgoSliderDevice>> = MutableLiveData()
     val devices: LiveData<List<AgoSliderDevice>> get() = _devices
+
+    val appVersion: String = appUpdateRepository.currentVersion
+
+    private val _appUpdate = MutableStateFlow<AppUpdateRepository.AppUpdate?>(null)
+    val appUpdate: StateFlow<AppUpdateRepository.AppUpdate?> = _appUpdate.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            while (isActive) {
+                _appUpdate.value = appUpdateRepository.checkForUpdate()
+                delay(APP_UPDATE_CHECK_INTERVAL)
+            }
+        }
+    }
 
     private val adapter = bluetoothAdapterProvider.getAdapter()
     private var scanner: BluetoothLeScanner? = null
@@ -113,5 +137,6 @@ class HomeViewModel @Inject constructor(
 
     companion object {
         val FILTER_UUID = ParcelUuid.fromString("0000FE95-0000-1000-8000-00805F9B34FB")!!
+        private val APP_UPDATE_CHECK_INTERVAL = 10.minutes
     }
 }

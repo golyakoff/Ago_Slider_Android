@@ -12,6 +12,9 @@ data class GithubRelease(
     @SerializedName("published_at")
     val publishedAt: String,
 
+    @SerializedName("html_url")
+    val htmlUrl: String = "",
+
     @SerializedName("prerelease")
     val prerelease: Boolean = false,
 

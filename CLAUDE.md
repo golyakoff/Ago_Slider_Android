@@ -72,6 +72,12 @@ Standard MVVM + Hilt DI + single-Activity Compose Navigation, layered as
   Progress/state is modeled as a `FirmwareRepository.UpdateState` sealed class consumed by
   `FirmwareViewModel`.
 
+- **App update check** — `AppUpdateRepository` watches the releases of the *app's own* repo
+  (`golyakoff/Ago_Slider_Android`), not the firmware's; `HomeViewModel` polls it every 10 minutes
+  and the Home screen's bottom plaque shows the installed version plus, when a newer tag exists, a
+  button opening the release page in a browser. There is no in-app APK install — only firmware is
+  updated from inside the app.
+
 - **Navigation** (`navigation/NavGraph.kt`, `Screen.kt`) — three Compose destinations: `Home`
   (scan/select device) → `Device` (main control screen, receives `AgoSliderDevice` via the nav
   back-stack `SavedStateHandle`, not as a route argument) → `FirmwareUpdate`. The Device screen
