@@ -25,6 +25,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import net.agolyakov.agoslider.R
+import net.agolyakov.agoslider.data.model.position.PositioningSettings
 import kotlin.math.roundToInt
 
 // ----------------------------------------------------------------------------
@@ -296,6 +298,86 @@ fun FloatTriple(
                 caption = perStepLabel(axisIsDegrees.third))
         }
     }
+}
+
+/**
+ * Home offset and coordinate limits per axis, in the axis's own unit. Unlike the other cards
+ * these values live on the phone (PositioningPreferences), not on the device, but the
+ * edit-then-save UX is the same. Like [FloatTriple] it keeps its editor state, because
+ * half-typed input is not a value anyone can use; the save button stays disabled until all
+ * nine fields parse.
+ */
+@Composable
+fun PositioningCard(
+    icon: ImageVector,
+    title: String,
+    storedValues: PositioningSettings,
+    axisIsDegrees: Triple<Boolean, Boolean, Boolean>,
+    onSave: (PositioningSettings) -> Unit
+) {
+    // Editing state, three fields per axis: [axis * 3 + (offset | min | max)]
+    val fields = remember(storedValues) {
+        mutableStateListOf(
+            storedValues.homeOffset.first.toString(),
+            storedValues.limitMin.first.toString(),
+            storedValues.limitMax.first.toString(),
+            storedValues.homeOffset.second.toString(),
+            storedValues.limitMin.second.toString(),
+            storedValues.limitMax.second.toString(),
+            storedValues.homeOffset.third.toString(),
+            storedValues.limitMin.third.toString(),
+            storedValues.limitMax.third.toString()
+        )
+    }
+    val parsed = fields.map { it.toFloatOrNull() }
+    val edited = if (parsed.any { it == null }) null else PositioningSettings(
+        homeOffset = Triple(parsed[0]!!, parsed[3]!!, parsed[6]!!),
+        limitMin = Triple(parsed[1]!!, parsed[4]!!, parsed[7]!!),
+        limitMax = Triple(parsed[2]!!, parsed[5]!!, parsed[8]!!)
+    )
+
+    ConfigCard(
+        icon = icon,
+        title = title,
+        dirty = edited != null && edited != storedValues,
+        onSave = { edited?.let(onSave) }
+    ) {
+        val axisDegrees = listOf(axisIsDegrees.first, axisIsDegrees.second, axisIsDegrees.third)
+        for (axis in 0..2) {
+            val unit = stringResource(if (axisDegrees[axis]) R.string.unit_deg else R.string.unit_mm)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    AXES[axis],
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.width(20.dp)
+                )
+                PositioningField(R.string.positioning_offset, fields, axis * 3, unit, Modifier.weight(1f))
+                PositioningField(R.string.positioning_min, fields, axis * 3 + 1, unit, Modifier.weight(1f))
+                PositioningField(R.string.positioning_max, fields, axis * 3 + 2, unit, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PositioningField(
+    labelRes: Int,
+    fields: MutableList<String>,
+    index: Int,
+    unit: String,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = fields[index],
+        onValueChange = { fields[index] = it },
+        label = { Text(stringResource(labelRes)) },
+        singleLine = true,
+        supportingText = { Text(unit) },
+        modifier = modifier
+    )
 }
 
 // ----------------------------------------------------------------------------

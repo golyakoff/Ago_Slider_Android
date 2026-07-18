@@ -16,6 +16,9 @@
     <!-- Device header -->
     <string name="device_battery">Battery %1$d%%</string>
     <string name="device_motors_enabled">Enable motors</string>
+    <string name="header_position_mm">%1$s %2$.1f mm</string>
+    <string name="header_position_deg">%1$s %2$.1f°</string>
+    <string name="header_position_unknown">%1$s —</string>
     <string name="state_ready">Ready</string>
     <string name="state_connecting">Connecting</string>
     <string name="state_connected">Connected</string>
@@ -48,6 +51,20 @@
     <string name="service_limit_switches">Limit switches: X=%1$s, C=%2$s, B=%3$s</string>
     <string name="service_power">Power: %1$s V, %2$s A, %3$s W</string>
     <string name="service_power_string">Power string: %1$s</string>
+    <string name="service_calibration_title">Calibration</string>
+    <string name="service_calibration_hint">Finds each axis\'s travel range using its endstop and fills in the coordinate limits</string>
+    <string name="service_calibrate_button">Calibrate</string>
+    <string name="service_calibration_cancel">Cancel</string>
+    <string name="calib_range_mm">%1$.1f … %2$.1f mm</string>
+    <string name="calib_range_deg">%1$.1f … %2$.1f°</string>
+    <string name="calib_phase_homing">Homing…</string>
+    <string name="calib_phase_offset">Moving to zero…</string>
+    <string name="calib_phase_clearing">Leaving the endstop…</string>
+    <string name="calib_phase_measuring">Searching for max…</string>
+    <string name="calib_phase_backoff">Backing off…</string>
+    <string name="calib_phase_fine">Fine approach…</string>
+    <string name="calib_phase_done">Done</string>
+    <string name="calib_phase_failed">Failed</string>
     <string name="service_firmware_title">Firmware</string>
     <string name="service_firmware_version">Current version: %1$s</string>
     <string name="service_check_updates">Check for updates</string>
@@ -62,6 +79,10 @@
     <string name="settings_axis_accel">Axis acceleration (steps/sec²)</string>
     <string name="settings_axis_speed">Default axis speed (steps/sec)</string>
     <string name="settings_virtual_limit">Virtual limit</string>
+    <string name="settings_positioning">Virtual coordinates</string>
+    <string name="positioning_offset">Offset</string>
+    <string name="positioning_min">Min</string>
+    <string name="positioning_max">Max</string>
     <string name="settings_stealthchop">StealthChop</string>
     <string name="settings_save">SAVE</string>
     <string name="settings_mm_per_sec">≈ %1$s mm/s</string>

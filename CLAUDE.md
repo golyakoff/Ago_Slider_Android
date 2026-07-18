@@ -63,6 +63,18 @@ Standard MVVM + Hilt DI + single-Activity Compose Navigation, layered as
     characteristics (MOT_EN, HOME, LIMIT, battery, power, VERSION) are subscribed once in
     `AgoSliderManager.initialize()`.
 
+- **`service/position/PositionManager`** — virtual coordinates, CNC-style, kept entirely on the
+  phone (the firmware has no position characteristic and no encoders — its own position
+  knowledge would be the same open-loop count of commanded steps). All homing/move commands go
+  through this class (not `BluetoothService` directly) so every commanded step is counted and
+  soft limits (`PositioningSettings` min/max, clamped only for axes whose firmware virtual-limit
+  flag is on) are applied. An axis's coordinate is valid from homing (plus the automatic
+  home-offset move that establishes 0) until disconnect, motors off, an unexpected limit-switch
+  hit, or a change to microsteps/units-per-step/invert — then it must be re-homed, like a CNC
+  after power-up. Also owns the limit-calibration state machine (home → offset → quantized creep
+  toward max watching LIMIT notifications, since the firmware doesn't stop positive moves at a
+  switch and there is no move-completed notification — waits are estimated from speed/accel).
+
 - **OTA update flow** — `FirmwareRepository` orchestrates
   `GithubRepository` (Retrofit/OkHttp client for the GitHub Releases API) → download firmware
   `.bin` asset → SHA-256/size validation (`HashUtils`) → chunked write over
@@ -92,9 +104,10 @@ Standard MVVM + Hilt DI + single-Activity Compose Navigation, layered as
 
 - **Persistence** — `AgoSliderPreferences` (SharedPreferences-backed, implements
   `domain.repository.PreferencesRepository`) stores only user-assigned friendly names per MAC
-  address; there is no other local persistence (no Room/DataStore). Its file is read back as a
-  whole (`getAllFriendlyNames`), so anything that is not a MAC-to-name entry belongs elsewhere —
-  the language choice lives in its own file, see below.
+  address. Its file is read back as a whole (`getAllFriendlyNames`), so anything that is not a
+  MAC-to-name entry belongs elsewhere: the language choice and the per-device positioning
+  settings (`PositioningPreferences`: home offsets + coordinate min/max, keyed by MAC) each live
+  in their own SharedPreferences file. No Room/DataStore.
 
 - **Localization** — UI strings live in `res/values/strings.xml` (English, the default) and
   `res/values-ru/strings.xml`; nothing user-facing should be hardcoded in a composable. The

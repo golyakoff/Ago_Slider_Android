@@ -14,6 +14,9 @@
     <!-- Device header -->
     <string name="device_battery">Батарея %1$d%%</string>
     <string name="device_motors_enabled">Включить моторы</string>
+    <string name="header_position_mm">%1$s %2$.1f мм</string>
+    <string name="header_position_deg">%1$s %2$.1f°</string>
+    <string name="header_position_unknown">%1$s —</string>
     <string name="state_ready">Готов</string>
     <string name="state_connecting">Подключение</string>
     <string name="state_connected">Подключено</string>
@@ -45,6 +48,20 @@
     <string name="service_limit_switches">Концевики: X=%1$s, C=%2$s, B=%3$s</string>
     <string name="service_power">Питание: %1$s В, %2$s А, %3$s Вт</string>
     <string name="service_power_string">Строка питания: %1$s</string>
+    <string name="service_calibration_title">Калибровка</string>
+    <string name="service_calibration_hint">Находит диапазон хода оси по её концевику и заполняет пределы координат</string>
+    <string name="service_calibrate_button">Калибровать</string>
+    <string name="service_calibration_cancel">Отмена</string>
+    <string name="calib_range_mm">%1$.1f … %2$.1f мм</string>
+    <string name="calib_range_deg">%1$.1f … %2$.1f°</string>
+    <string name="calib_phase_homing">Поиск нуля…</string>
+    <string name="calib_phase_offset">Выход в ноль…</string>
+    <string name="calib_phase_clearing">Сход с датчика…</string>
+    <string name="calib_phase_measuring">Поиск максимума…</string>
+    <string name="calib_phase_backoff">Откат…</string>
+    <string name="calib_phase_fine">Точный подход…</string>
+    <string name="calib_phase_done">Готово</string>
+    <string name="calib_phase_failed">Ошибка</string>
     <string name="service_firmware_title">Прошивка</string>
     <string name="service_firmware_version">Текущая версия: %1$s</string>
     <string name="service_check_updates">Проверить обновления</string>
@@ -59,6 +76,10 @@
     <string name="settings_axis_accel">Ускорение оси (шагов/с²)</string>
     <string name="settings_axis_speed">Скорость оси по умолчанию (шагов/с)</string>
     <string name="settings_virtual_limit">Виртуальный лимит</string>
+    <string name="settings_positioning">Виртуальные координаты</string>
+    <string name="positioning_offset">Смещение</string>
+    <string name="positioning_min">Мин</string>
+    <string name="positioning_max">Макс</string>
     <string name="settings_stealthchop">StealthChop</string>
     <string name="settings_save">СОХРАНИТЬ</string>
     <string name="settings_mm_per_sec">≈ %1$s мм/с</string>

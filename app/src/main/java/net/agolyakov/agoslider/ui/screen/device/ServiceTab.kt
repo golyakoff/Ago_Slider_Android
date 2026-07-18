@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.OpenWith
+import androidx.compose.material.icons.filled.SquareFoot
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -26,6 +27,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import net.agolyakov.agoslider.R
+import net.agolyakov.agoslider.data.model.position.CalibrationPhase
+import net.agolyakov.agoslider.data.model.position.CalibrationState
+import net.agolyakov.agoslider.data.model.position.PositioningSettings
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
 import kotlin.math.roundToInt
 
@@ -43,10 +47,15 @@ fun ServiceTabContent(
     powerInfo: Triple<Float, Float, Float>,
     powerInfoString: String,
     firmwareVersion: String,
+    calibration: CalibrationState,
+    positioning: PositioningSettings,
+    motorsEnabled: Boolean,
     onMoveXChange: (Int) -> Unit,
     onMoveCChange: (Int) -> Unit,
     onMoveBChange: (Int) -> Unit,
     onSendMoveCommand: () -> Unit,
+    onCalibrate: (Int) -> Unit,
+    onCancelCalibration: () -> Unit,
     onCheckFirmwareUpdates: () -> Unit
 ) {
     Column(
@@ -69,6 +78,15 @@ fun ServiceTabContent(
                 }
             }
         }
+
+        CalibrationCard(
+            calibration = calibration,
+            positioning = positioning,
+            axisUnit = axisUnit,
+            motorsEnabled = motorsEnabled,
+            onCalibrate = onCalibrate,
+            onCancelCalibration = onCancelCalibration
+        )
 
         HorizontalDivider()
 
@@ -110,6 +128,86 @@ private val MOVE_X_RANGE = -500..500
 private val MOVE_C_RANGE = -360..360
 private val MOVE_B_RANGE = -300..300
 private const val MOVE_STEP = 10
+
+// ----------------------------------------------------------------------------
+// Limit calibration: per-axis "find the travel range" flow driven by
+// PositionManager; shows the stored range when idle and the phase while running
+// ----------------------------------------------------------------------------
+@Composable
+private fun CalibrationCard(
+    calibration: CalibrationState,
+    positioning: PositioningSettings,
+    axisUnit: Triple<Boolean, Boolean, Boolean>,
+    motorsEnabled: Boolean,
+    onCalibrate: (Int) -> Unit,
+    onCancelCalibration: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CardTitle(Icons.Default.SquareFoot, stringResource(R.string.service_calibration_title))
+            Text(
+                stringResource(R.string.service_calibration_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline
+            )
+            val axes = listOf("X", "C", "B")
+            val mins = listOf(positioning.limitMin.first, positioning.limitMin.second, positioning.limitMin.third)
+            val maxs = listOf(positioning.limitMax.first, positioning.limitMax.second, positioning.limitMax.third)
+            val degrees = listOf(axisUnit.first, axisUnit.second, axisUnit.third)
+            for (axis in 0..2) {
+                val running = calibration.axis == axis && calibration.phase.running
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        axes[axis],
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.width(20.dp)
+                    )
+                    Text(
+                        text = if (calibration.axis == axis && calibration.phase != CalibrationPhase.IDLE) {
+                            calibrationPhaseLabel(calibration.phase)
+                        } else {
+                            stringResource(
+                                if (degrees[axis]) R.string.calib_range_deg else R.string.calib_range_mm,
+                                mins[axis], maxs[axis]
+                            )
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (running) {
+                        Button(onClick = onCancelCalibration) {
+                            Text(stringResource(R.string.service_calibration_cancel))
+                        }
+                    } else {
+                        Button(
+                            onClick = { onCalibrate(axis) },
+                            enabled = motorsEnabled && !calibration.phase.running
+                        ) {
+                            Text(stringResource(R.string.service_calibrate_button))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun calibrationPhaseLabel(phase: CalibrationPhase): String = stringResource(
+    when (phase) {
+        CalibrationPhase.HOMING -> R.string.calib_phase_homing
+        CalibrationPhase.OFFSET -> R.string.calib_phase_offset
+        CalibrationPhase.CLEARING -> R.string.calib_phase_clearing
+        CalibrationPhase.MEASURING -> R.string.calib_phase_measuring
+        CalibrationPhase.BACKOFF -> R.string.calib_phase_backoff
+        CalibrationPhase.FINE -> R.string.calib_phase_fine
+        CalibrationPhase.DONE, CalibrationPhase.IDLE -> R.string.calib_phase_done
+        CalibrationPhase.FAILED -> R.string.calib_phase_failed
+    }
+)
 
 @Composable
 private fun MoveAxisSlider(
@@ -157,10 +255,15 @@ private fun ServiceTabPreview(darkTheme: Boolean) {
             powerInfo = Triple(21.48f, 0.082f, 1.76f),
             powerInfoString = "21.48V 0.082A 1.76W",
             firmwareVersion = "v0.1.0",
+            calibration = CalibrationState(),
+            positioning = PositioningSettings.DEFAULT,
+            motorsEnabled = true,
             onMoveXChange = {},
             onMoveCChange = {},
             onMoveBChange = {},
             onSendMoveCommand = {},
+            onCalibrate = {},
+            onCancelCalibration = {},
             onCheckFirmwareUpdates = {}
         )
     }

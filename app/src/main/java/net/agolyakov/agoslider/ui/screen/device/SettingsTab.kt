@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.LinearScale
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.Speed
@@ -27,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import net.agolyakov.agoslider.R
+import net.agolyakov.agoslider.data.model.position.PositioningSettings
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
 
 // ----------------------------------------------------------------------------
@@ -45,6 +47,7 @@ fun SettingsTabContent(
     virtualLimit: Triple<Boolean, Boolean, Boolean>,
     stealthChop: Triple<Boolean, Boolean, Boolean>,
     invertDir: Triple<Boolean, Boolean, Boolean>,
+    positioning: PositioningSettings,
     onMicrostepsChange: (Int, Int, Int) -> Unit,
     onRunCurrentChange: (Int, Int, Int) -> Unit,
     onHoldCurrentChange: (Int, Int, Int) -> Unit,
@@ -54,7 +57,8 @@ fun SettingsTabContent(
     onAxisAccelChange: (Int, Int, Int) -> Unit,
     onVirtualLimitChange: (Boolean, Boolean, Boolean) -> Unit,
     onStealthChopChange: (Boolean, Boolean, Boolean) -> Unit,
-    onInvertDirChange: (Boolean, Boolean, Boolean) -> Unit
+    onInvertDirChange: (Boolean, Boolean, Boolean) -> Unit,
+    onSavePositioning: (PositioningSettings) -> Unit
 ) {
     // The edited copy of every card, reset whenever the device reports new values. Kept here
     // rather than inside the cards because the speed card is derived from three of them.
@@ -169,6 +173,14 @@ fun SettingsTabContent(
             onValueChange = { virtualLimitEdit = it },
             onSave = { onVirtualLimitChange(virtualLimitEdit.first, virtualLimitEdit.second, virtualLimitEdit.third) }
         )
+        // Virtual coordinate settings — stored on the phone per device, not on the slider
+        PositioningCard(
+            icon = Icons.Default.MyLocation,
+            title = stringResource(R.string.settings_positioning),
+            storedValues = positioning,
+            axisIsDegrees = axisUnitEdit,
+            onSave = onSavePositioning
+        )
         BoolTriple(
             icon = Icons.Default.VolumeOff,
             title = stringResource(R.string.settings_stealthchop),
@@ -205,6 +217,7 @@ private fun SettingsTabPreview(darkTheme: Boolean) {
             virtualLimit = Triple(true, false, true),
             stealthChop = Triple(true, true, true),
             invertDir = Triple(false, false, false),
+            positioning = PositioningSettings.DEFAULT,
             onMicrostepsChange = { _, _, _ -> },
             onRunCurrentChange = { _, _, _ -> },
             onHoldCurrentChange = { _, _, _ -> },
@@ -214,7 +227,8 @@ private fun SettingsTabPreview(darkTheme: Boolean) {
             onAxisAccelChange = { _, _, _ -> },
             onVirtualLimitChange = { _, _, _ -> },
             onStealthChopChange = { _, _, _ -> },
-            onInvertDirChange = { _, _, _ -> }
+            onInvertDirChange = { _, _, _ -> },
+            onSavePositioning = {}
         )
     }
 }

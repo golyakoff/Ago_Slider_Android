@@ -64,9 +64,13 @@ class BluetoothService @Inject constructor(
     private val _homeStatus = MutableStateFlow(HomeStatus(Triple(false, false, false), Triple(false, false, false)))
     val homeStatus: StateFlow<HomeStatus> = _homeStatus
 
-    // Limit switches
+    // Limit switches: current state plus monotonic per-axis trigger counters (the state flow
+    // conflates a trigger-and-release that happens between collector resumptions; the
+    // counters make every hit observable)
     private val _limitStatus = MutableStateFlow(Triple(false, false, false))
     val limitStatus: StateFlow<Triple<Boolean, Boolean, Boolean>> = _limitStatus
+    private val _limitHitCounts = MutableStateFlow(Triple(0, 0, 0))
+    val limitHitCounts: StateFlow<Triple<Int, Int, Int>> = _limitHitCounts
 
     // Battery level (0-255 raw, convert to percent if needed)
     private val _batteryLevel = MutableStateFlow(0)
@@ -125,7 +129,7 @@ class BluetoothService @Inject constructor(
 
     private val motEnHandler = MotEnReadCharacteristicHandler(_motorsEnabled)
     private val homeHandler = HomeReadCharacteristicHandler(_homeStatus)
-    private val limitHandler = LimitReadCharacteristicHandler(_limitStatus)
+    private val limitHandler = LimitReadCharacteristicHandler(_limitStatus, _limitHitCounts)
     private val batteryLevelHandler = BatteryLevelReadCharacteristicHandler(_batteryLevel)
     private val powerInfoHandler = PowerInfoReadCharacteristicHandler(_powerInfo)
     private val powerInfoStringHandler = PowerInfoStringReadCharacteristicHandler(_powerInfoString)

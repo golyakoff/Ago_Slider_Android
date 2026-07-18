@@ -7,13 +7,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
+import net.agolyakov.agoslider.data.model.position.PositioningSettings
 import net.agolyakov.agoslider.service.bluetooth.BluetoothService
+import net.agolyakov.agoslider.service.position.PositionManager
 import javax.inject.Inject
-import kotlin.math.roundToInt
 
 @HiltViewModel
 class DeviceViewModel @Inject constructor(
     private val bluetoothService: BluetoothService,
+    private val positionManager: PositionManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -42,8 +44,13 @@ class DeviceViewModel @Inject constructor(
     val batteryLevel = bluetoothService.batteryLevel
     val firmwareVersion = bluetoothService.firmwareVersion
 
-    // Move command, in the axis's own unit (mm or degrees) — the device works in steps, so
-    // the distances are converted on the way out
+    // Virtual coordinates (see PositionManager for the validity rules)
+    val coordinates = positionManager.coordinates
+    val positioning = positionManager.settings
+    val calibration = positionManager.calibration
+
+    // Move command, in the axis's own unit (mm or degrees) — the conversion to steps and the
+    // soft-limit clamping happen in PositionManager
     private val _moveX = MutableStateFlow(0)
     val moveX: StateFlow<Int> = _moveX.asStateFlow()
     private val _moveC = MutableStateFlow(0)
@@ -56,20 +63,11 @@ class DeviceViewModel @Inject constructor(
     fun updateMoveB(value: Int) { _moveB.value = value }
 
     fun sendMoveCommand() {
-        bluetoothService.sendMoveCommand(
-            unitsToSteps(_moveX.value, unitsPerStep.value.first, microsteps.value.first),
-            unitsToSteps(_moveC.value, unitsPerStep.value.second, microsteps.value.second),
-            unitsToSteps(_moveB.value, unitsPerStep.value.third, microsteps.value.third)
+        positionManager.moveRelative(
+            _moveX.value.toFloat(),
+            _moveC.value.toFloat(),
+            _moveB.value.toFloat()
         )
-    }
-
-    /**
-     * The device moves in STEP pulses, i.e. microsteps, while `units per step` is per full
-     * motor step — the inverse of how the settings screen turns a step rate into mm/s.
-     */
-    private fun unitsToSteps(units: Int, unitsPerStep: Float, microsteps: Int): Int {
-        if (unitsPerStep == 0f) return 0
-        return (units / unitsPerStep * microsteps).roundToInt()
     }
 
     fun setMotorsEnabled(enabled: Boolean) {
@@ -77,7 +75,19 @@ class DeviceViewModel @Inject constructor(
     }
 
     fun sendHomeCommand(homeX: Boolean, homeC: Boolean, homeB: Boolean) {
-        bluetoothService.sendHomeCommand(homeX, homeC, homeB)
+        positionManager.startHoming(homeX, homeC, homeB)
+    }
+
+    fun savePositioning(settings: PositioningSettings) {
+        positionManager.saveSettings(settings)
+    }
+
+    fun startCalibration(axis: Int) {
+        positionManager.startCalibration(axis)
+    }
+
+    fun cancelCalibration() {
+        positionManager.cancelCalibration()
     }
 
     fun setMicrosteps(x: Int, c: Int, b: Int) {

@@ -43,6 +43,9 @@ import net.agolyakov.agoslider.R
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.data.model.ble.ConnectionState
 import net.agolyakov.agoslider.data.model.ble.HomeStatus
+import net.agolyakov.agoslider.data.model.position.AxisCoordinates
+import net.agolyakov.agoslider.data.model.position.CalibrationState
+import net.agolyakov.agoslider.data.model.position.PositioningSettings
 import net.agolyakov.agoslider.navigation.Screen
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
 
@@ -95,6 +98,10 @@ fun DeviceScreen(
     val moveX by viewModel.moveX.collectAsState()
     val moveC by viewModel.moveC.collectAsState()
     val moveB by viewModel.moveB.collectAsState()
+
+    val coordinates by viewModel.coordinates.collectAsState()
+    val positioning by viewModel.positioning.collectAsState()
+    val calibration by viewModel.calibration.collectAsState()
 
     // The slider drops the link when it reboots (e.g. right after an OTA update finishes);
     // while this screen is visible, any lost connection is re-established automatically.
@@ -153,6 +160,12 @@ fun DeviceScreen(
         moveX = moveX,
         moveC = moveC,
         moveB = moveB,
+        coordinates = coordinates,
+        positioning = positioning,
+        calibration = calibration,
+        onSavePositioning = viewModel::savePositioning,
+        onCalibrate = viewModel::startCalibration,
+        onCancelCalibration = viewModel::cancelCalibration,
         onMotorsEnabledChange = viewModel::setMotorsEnabled,
         onSendHomeCommand = viewModel::sendHomeCommand,
         onSendMoveCommand = viewModel::sendMoveCommand,
@@ -199,6 +212,12 @@ fun DeviceScreenContent(
     moveX: Int,
     moveC: Int,
     moveB: Int,
+    coordinates: AxisCoordinates,
+    positioning: PositioningSettings,
+    calibration: CalibrationState,
+    onSavePositioning: (PositioningSettings) -> Unit,
+    onCalibrate: (Int) -> Unit,
+    onCancelCalibration: () -> Unit,
     onMotorsEnabledChange: (Boolean) -> Unit,
     onSendHomeCommand: (Boolean, Boolean, Boolean) -> Unit,
     onSendMoveCommand: () -> Unit,
@@ -242,6 +261,8 @@ fun DeviceScreenContent(
             DeviceHeader(
                 connectionStateString = connectionStateString,
                 batteryLevel = batteryLevel,
+                coordinates = coordinates,
+                axisUnit = axisUnit,
                 motorsEnabled = motorsEnabled,
                 onMotorsEnabledChange = onMotorsEnabledChange
             )
@@ -263,10 +284,15 @@ fun DeviceScreenContent(
                     powerInfo = powerInfo,
                     powerInfoString = powerInfoString,
                     firmwareVersion = firmwareVersion,
+                    calibration = calibration,
+                    positioning = positioning,
+                    motorsEnabled = motorsEnabled,
                     onMoveXChange = onMoveXChange,
                     onMoveCChange = onMoveCChange,
                     onMoveBChange = onMoveBChange,
                     onSendMoveCommand = onSendMoveCommand,
+                    onCalibrate = onCalibrate,
+                    onCancelCalibration = onCancelCalibration,
                     onCheckFirmwareUpdates = onCheckFirmwareUpdates
                 )
 
@@ -290,7 +316,9 @@ fun DeviceScreenContent(
                     onAxisAccelChange = onAxisAccelChange,
                     onVirtualLimitChange = onVirtualLimitChange,
                     onStealthChopChange = onStealthChopChange,
-                    onInvertDirChange = onInvertDirChange
+                    onInvertDirChange = onInvertDirChange,
+                    positioning = positioning,
+                    onSavePositioning = onSavePositioning
                 )
             }
         }
@@ -298,13 +326,15 @@ fun DeviceScreenContent(
 }
 
 // ----------------------------------------------------------------------------
-// Shared header: device identity, connection status and the global motor
-// enable switch — visible on every tab
+// Shared header: device identity, connection status, virtual coordinates and
+// the global motor enable switch — visible on every tab
 // ----------------------------------------------------------------------------
 @Composable
 private fun DeviceHeader(
     connectionStateString: String,
     batteryLevel: Int,
+    coordinates: AxisCoordinates,
+    axisUnit: Triple<Boolean, Boolean, Boolean>,
     motorsEnabled: Boolean,
     onMotorsEnabledChange: (Boolean) -> Unit
 ) {
@@ -324,6 +354,24 @@ private fun DeviceHeader(
                 modifier = Modifier.weight(1f)
             )
         }
+        // Virtual coordinates, CNC-style: "—" until the axis has been homed in this session
+        Row(modifier = Modifier.fillMaxWidth()) {
+            HeaderStatusField(
+                text = axisPositionLabel("X", coordinates.units.first, coordinates.valid.first, axisUnit.first),
+                textAlign = TextAlign.Start,
+                modifier = Modifier.weight(1f)
+            )
+            HeaderStatusField(
+                text = axisPositionLabel("C", coordinates.units.second, coordinates.valid.second, axisUnit.second),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f)
+            )
+            HeaderStatusField(
+                text = axisPositionLabel("B", coordinates.units.third, coordinates.valid.third, axisUnit.third),
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f)
+            )
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -333,6 +381,24 @@ private fun DeviceHeader(
         }
     }
 }
+
+@Composable
+private fun axisPositionLabel(
+    axis: String,
+    value: Float,
+    valid: Boolean,
+    isDegrees: Boolean
+): String {
+    if (!valid) return stringResource(R.string.header_position_unknown, axis)
+    return if (isDegrees) {
+        stringResource(R.string.header_position_deg, axis, normalizeDegrees(value))
+    } else {
+        stringResource(R.string.header_position_mm, axis, value)
+    }
+}
+
+/** Angles are shown as -180..180 rather than 0..360 — easier to judge in one's head. */
+private fun normalizeDegrees(value: Float): Float = ((value % 360f) + 540f) % 360f - 180f
 
 @Composable
 private fun HeaderStatusField(
@@ -379,6 +445,12 @@ fun DeviceScreenPreview(darkTheme: Boolean, initialTab: DeviceTab = DeviceTab.Mo
             moveX = 0,
             moveC = 0,
             moveB = 0,
+            coordinates = AxisCoordinates(Triple(120.5f, -12.5f, 45f), Triple(true, true, false)),
+            positioning = PositioningSettings.DEFAULT,
+            calibration = CalibrationState(),
+            onSavePositioning = {},
+            onCalibrate = {},
+            onCancelCalibration = {},
             onMotorsEnabledChange = {},
             onSendHomeCommand = { _, _, _ -> },
             onSendMoveCommand = {},
