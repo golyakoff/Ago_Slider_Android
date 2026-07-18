@@ -1,3 +1,13 @@
+# Release 0.1.5
+
+- Virtual axis coordinates now show in the device header (angles displayed as
+  −180…180).
+- New per-device positioning settings — home offsets and per-axis min/max
+  limits — with moves clamped to the configured soft limits.
+- Automatic endstop calibration added to the Service tab.
+- Limits are re-established after a reconnect by homing (CNC-style validity
+  rules).
+
 # Release 0.1.4
 
 - The device screen reconnects automatically when the slider drops the link — e.g. right
