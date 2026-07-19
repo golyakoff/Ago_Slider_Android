@@ -1,3 +1,15 @@
+# Release 0.1.6
+
+- Endstop calibration is now run by the device (firmware 0.1.4 or newer): the app sends
+  one command and follows the phases the slider reports. The previous version measured
+  the span over Bluetooth, which could miss the sensors' millisecond-long pulses and
+  drive an axis into its hard stop — on the long X rail that inflated the measured
+  travel by about 50 mm.
+- Coordinates now come from the device itself and are notified while it moves, so the
+  displayed position no longer drifts away from reality on stalls or forced stops.
+- An axis keeps its coordinate when a limit switch is touched instead of asking for a
+  new homing run.
+
 # Release 0.1.5
 
 - Virtual axis coordinates now show in the device header (angles displayed as
