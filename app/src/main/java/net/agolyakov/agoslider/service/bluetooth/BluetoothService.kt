@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeout
 import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.data.model.ble.ConnectionState
 import net.agolyakov.agoslider.data.model.ble.HomeStatus
+import net.agolyakov.agoslider.data.model.position.DeviceCalibStatus
 import net.agolyakov.agoslider.service.bluetooth.handlers.*
 import no.nordicsemi.android.ble.observer.ConnectionObserver
 import javax.inject.Inject
@@ -72,6 +73,16 @@ class BluetoothService @Inject constructor(
     private val _limitHitCounts = MutableStateFlow(Triple(0, 0, 0))
     val limitHitCounts: StateFlow<Triple<Int, Int, Int>> = _limitHitCounts
 
+    // Device-reported position in STEP pulses (firmware >= 0.1.4; the firmware zeroes an
+    // axis when it completes homing). Null until the first value arrives — which doubles
+    // as "this firmware does not support POSITION".
+    private val _devicePosition = MutableStateFlow<Triple<Int, Int, Int>?>(null)
+    val devicePosition: StateFlow<Triple<Int, Int, Int>?> = _devicePosition
+
+    // Hardware-calibration status notifications (firmware >= 0.1.4); null until one arrives
+    private val _calibStatus = MutableStateFlow<DeviceCalibStatus?>(null)
+    val calibStatus: StateFlow<DeviceCalibStatus?> = _calibStatus
+
     // Battery level (0-255 raw, convert to percent if needed)
     private val _batteryLevel = MutableStateFlow(0)
     val batteryLevel: StateFlow<Int> = _batteryLevel
@@ -130,6 +141,8 @@ class BluetoothService @Inject constructor(
     private val motEnHandler = MotEnReadCharacteristicHandler(_motorsEnabled)
     private val homeHandler = HomeReadCharacteristicHandler(_homeStatus)
     private val limitHandler = LimitReadCharacteristicHandler(_limitStatus, _limitHitCounts)
+    private val positionHandler = PositionReadCharacteristicHandler(_devicePosition)
+    private val calibStatusHandler = CalibStatusReadCharacteristicHandler(_calibStatus)
     private val batteryLevelHandler = BatteryLevelReadCharacteristicHandler(_batteryLevel)
     private val powerInfoHandler = PowerInfoReadCharacteristicHandler(_powerInfo)
     private val powerInfoStringHandler = PowerInfoStringReadCharacteristicHandler(_powerInfoString)
@@ -162,6 +175,8 @@ class BluetoothService @Inject constructor(
         powerInfoHandler,
         powerInfoStringHandler,
         limitHandler,
+        positionHandler,
+        calibStatusHandler,
         homeHandler,
         motEnHandler,
         versionHandler
@@ -192,6 +207,8 @@ class BluetoothService @Inject constructor(
 
         override fun onDeviceDisconnected(device: BluetoothDevice, reason: Int) {
             _connectionState.value = ConnectionState.Disconnected
+            // Support for the optional POSITION characteristic is unknown until reconnect
+            _devicePosition.value = null
         }
     }
 
@@ -253,6 +270,7 @@ class BluetoothService @Inject constructor(
         // happen for a long time after connecting, so read their current state once.
         bleManager.readMotEnCharacteristic()
         bleManager.readLimitCharacteristic()
+        bleManager.readPositionCharacteristic()
         bleManager.readBattLevelCharacteristic()
         bleManager.readPowerInfoCharacteristic()
         bleManager.readPowerInfoStringCharacteristic()
@@ -273,6 +291,16 @@ class BluetoothService @Inject constructor(
     fun sendMoveCommand(x: Int, c: Int, b: Int) {
         bleManager.writeMoveCommand(x, c, b)
     }
+
+    /** Reset the last calibration status so a new run cannot react to a stale terminal one. */
+    fun resetCalibStatus() {
+        _calibStatus.value = null
+    }
+
+    fun sendCalibrateCommand(axis: Int, parkOffsetSteps: Int, retreatSteps: Int): Boolean =
+        bleManager.writeCalibrateCommand(axis, parkOffsetSteps, retreatSteps)
+
+    fun sendCalibrateAbort(): Boolean = bleManager.writeCalibrateAbort()
 
     fun setMicrosteps(x: Int, c: Int, b: Int) {
         // Convert Int to Byte according to encoding: 256 -> 0, otherwise the value itself

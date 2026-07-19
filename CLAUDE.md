@@ -63,17 +63,21 @@ Standard MVVM + Hilt DI + single-Activity Compose Navigation, layered as
     characteristics (MOT_EN, HOME, LIMIT, battery, power, VERSION) are subscribed once in
     `AgoSliderManager.initialize()`.
 
-- **`service/position/PositionManager`** — virtual coordinates, CNC-style, kept entirely on the
-  phone (the firmware has no position characteristic and no encoders — its own position
-  knowledge would be the same open-loop count of commanded steps). All homing/move commands go
-  through this class (not `BluetoothService` directly) so every commanded step is counted and
-  soft limits (`PositioningSettings` min/max, clamped only for axes whose firmware virtual-limit
-  flag is on) are applied. An axis's coordinate is valid from homing (plus the automatic
-  home-offset move that establishes 0) until disconnect, motors off, an unexpected limit-switch
-  hit, or a change to microsteps/units-per-step/invert — then it must be re-homed, like a CNC
-  after power-up. Also owns the limit-calibration state machine (home → offset → quantized creep
-  toward max watching LIMIT notifications, since the firmware doesn't stop positive moves at a
-  switch and there is no move-completed notification — waits are estimated from speed/accel).
+- **`service/position/PositionManager`** — virtual coordinates, CNC-style. The coordinate
+  source of truth is the firmware's POSITION characteristic (0xF005, firmware ≥ 0.1.4): the
+  device zeroes an axis at its switch on homing and notifies every 200 ms while moving; the
+  app's zero sits `homeOffset` above the firmware's, and locally counted commanded steps serve
+  only as optimistic estimates between notifications (and as the sole source on older
+  firmware). All homing/move commands go through this class (not `BluetoothService` directly)
+  so soft limits (`PositioningSettings` min/max, clamped only for axes whose firmware
+  virtual-limit flag is on) are applied. An axis's coordinate is valid from homing (plus the
+  automatic home-offset move that establishes 0) until disconnect, motors off, or a change to
+  microsteps/units-per-step/invert; a limit-switch hit does NOT invalidate when the firmware
+  reports position (its count survives force stops). Calibration is hardware-side: the app
+  writes one CALIBRATE command (0xF006) with the park offset and retreat distance, mirrors the
+  phases the device notifies, and records the measured span (min = −offset,
+  max = span − offset) — all motion and endstop timing happen in the firmware, because the
+  endstop sensors emit millisecond-long pulses that a BLE-driven loop cannot catch in time.
 
 - **OTA update flow** — `FirmwareRepository` orchestrates
   `GithubRepository` (Retrofit/OkHttp client for the GitHub Releases API) → download firmware

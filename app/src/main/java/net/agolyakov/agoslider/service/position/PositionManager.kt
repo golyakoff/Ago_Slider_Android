@@ -11,7 +11,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import net.agolyakov.agoslider.data.local.PositioningPreferences
@@ -19,6 +22,7 @@ import net.agolyakov.agoslider.data.model.ble.ConnectionState
 import net.agolyakov.agoslider.data.model.position.AxisCoordinates
 import net.agolyakov.agoslider.data.model.position.CalibrationPhase
 import net.agolyakov.agoslider.data.model.position.CalibrationState
+import net.agolyakov.agoslider.data.model.position.DeviceCalibStatus
 import net.agolyakov.agoslider.data.model.position.PositioningSettings
 import net.agolyakov.agoslider.service.bluetooth.BluetoothService
 import javax.inject.Inject
@@ -109,16 +113,22 @@ class PositionManager @Inject constructor(
         scope.launch { bluetoothService.unitsPerStep.drop(1).collect { invalidateAll() } }
         scope.launch { bluetoothService.invertDir.drop(1).collect { invalidateAll() } }
 
-        // An unexpected limit switch hit: the firmware may have force-stopped the move, so the
-        // commanded count has diverged from reality for that axis. Watches the monotonic hit
-        // counters, not the conflatable state flow, so brief hits are not missed.
+        // An unexpected limit switch hit: without firmware position reporting it means the
+        // commanded count may have diverged (a force stop cuts a move short), so the axis is
+        // dropped. With firmware >= 0.1.4 the device itself is the counter and survives
+        // force stops, so the position stays trusted. Watches the monotonic hit counters,
+        // not the conflatable state flow, so brief hits are not missed.
         scope.launch {
             var last = bluetoothService.limitHitCounts.value
             bluetoothService.limitHitCounts.collect { counts ->
                 for (axis in 0..2) {
                     if (counts.at(axis) > last.at(axis) && axis !in protectedAxes) {
-                        Log.w(tag, "Unexpected limit hit on axis $axis, position invalidated")
-                        invalidateAxis(axis)
+                        if (bluetoothService.devicePosition.value != null) {
+                            Log.i(tag, "Limit hit on axis $axis — position kept, firmware tracks it")
+                        } else {
+                            Log.w(tag, "Unexpected limit hit on axis $axis, position invalidated")
+                            invalidateAxis(axis)
+                        }
                     }
                 }
                 last = counts
@@ -134,6 +144,23 @@ class PositionManager @Inject constructor(
                         applyHomeOffset(axis)
                     }
                 }
+            }
+        }
+
+        // Firmware >= 0.1.4 reports its own position (zeroed at the switch on homing) —
+        // the same open-loop step count, but kept at the source, so force stops and homing
+        // are reflected exactly. It continuously overwrites the locally counted frame; the
+        // app's zero sits homeOffset above the firmware's. The local commanded increments
+        // remain as optimistic estimates between 200 ms notifications. On older firmware
+        // the flow stays null and nothing changes.
+        scope.launch {
+            bluetoothService.devicePosition.collect { fw ->
+                if (fw == null) return@collect
+                for (axis in 0..2) {
+                    stepCounts[axis] =
+                        fw.at(axis) - unitsToSteps(_settings.value.homeOffset.at(axis), axis)
+                }
+                publish()
             }
         }
     }
@@ -199,21 +226,17 @@ class PositionManager @Inject constructor(
     // ========================== Calibration ==========================
 
     /**
-     * Measure the usable range of [axis]: home it, apply the home offset (coordinate 0), then
-     * creep toward max in quanta until the endstop answers — the firmware does not stop moves
-     * in the positive direction, so the approach must be quantized with a switch check after
-     * every quantum. min is derived from the home offset, max from the fine-pass reading.
+     * Hardware calibration: the whole endstop dance (fast seek to min, retreat, slow
+     * re-seek anchoring the device position at 0, same at the max end, park at the home
+     * offset) runs INSIDE the firmware, which reacts to endstop events with ~1 ms latency —
+     * the sensors emit millisecond blinks no BLE-driven loop can catch in time. The app only
+     * sends the command, mirrors the reported phases and records the measured span.
      */
     fun startCalibration(axis: Int) {
         if (calibrationJob?.isActive == true) return
         calibrationJob = scope.launch {
-            // The flow temporarily drops the firmware's virtual-limit flag (so that leaving
-            // an active switch is not force-stopped) and lowers the axis speed for the
-            // precise stages — restore the user's settings whatever happens
-            val originalVirtualLimit = bluetoothService.virtualLimit.value.at(axis)
-            val originalSpeed = bluetoothService.axisSpeed.value
             try {
-                runCalibration(axis, originalSpeed.at(axis))
+                runCalibration(axis)
             } catch (e: CancellationException) {
                 _calibration.value = CalibrationState(axis, CalibrationPhase.IDLE)
                 throw e
@@ -222,10 +245,6 @@ class PositionManager @Inject constructor(
                 _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
             } finally {
                 protectedAxes.remove(axis)
-                setVirtualLimitForAxis(axis, originalVirtualLimit)
-                if (originalSpeed.at(axis) > 0) {
-                    setAxisSpeedForAxis(axis, originalSpeed.at(axis))
-                }
             }
         }
     }
@@ -234,40 +253,23 @@ class PositionManager @Inject constructor(
         if (calibrationJob?.isActive != true) return
         val axis = _calibration.value.axis
         calibrationJob?.cancel()
-        // A commanded move keeps running on the device after the coroutine dies — stop it
-        // the same way the sweep brake does (HOME with an empty mask = forceStop), and drop
-        // the axis: the force stop desyncs whatever count it had
-        bluetoothService.sendHomeCommand(false, false, false)
+        // The device runs the sequence autonomously — tell it to stop (force stop inside)
+        bluetoothService.sendCalibrateAbort()
         axis?.let { invalidateAxis(it) }
     }
 
-    private suspend fun runCalibration(axis: Int, fastSpeedSetting: Int) {
+    private suspend fun runCalibration(axis: Int) {
         val degrees = bluetoothService.axisUnit.value.at(axis)
         val coarse = if (degrees) COARSE_QUANTUM_DEG else COARSE_QUANTUM_MM
-        val fine = if (degrees) FINE_QUANTUM_DEG else FINE_QUANTUM_MM
-        val slowSpeedSetting = (fastSpeedSetting / SLOW_SPEED_DIVISOR).coerceAtLeast(SLOW_SPEED_MIN)
+        val offsetUnits = _settings.value.homeOffset.at(axis)
 
-        Log.i(
-            tag,
-            "Calibration axis=$axis start: speed=${bluetoothService.axisSpeed.value} " +
-                    "accel=${bluetoothService.axisAccel.value} " +
-                    "microsteps=${bluetoothService.microsteps.value} " +
-                    "unitsPerStep=${bluetoothService.unitsPerStep.value} " +
-                    "coarse=$coarse fine=$fine settings=${_settings.value}"
-        )
+        Log.i(tag, "Calibration axis=$axis start (hardware): offset=$offsetUnits settings=${_settings.value}")
         val ready = bluetoothService.connectionState.value is ConnectionState.Ready &&
                 bluetoothService.motorsEnabled.value &&
-                unitsToSteps(coarse, axis) > 0 // steps-to-units geometry must be known
+                unitsToSteps(coarse, axis) > 0 && // steps-to-units geometry must be known
+                bluetoothService.devicePosition.value != null
         if (!ready) {
             Log.w(tag, "Calibration axis=$axis not ready to start")
-            _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
-            return
-        }
-
-        // The flow assumes it starts away from both endstops: homing on an active switch
-        // "completes" instantly at whichever end the carriage happens to press
-        if (limitActive(axis)) {
-            Log.w(tag, "Calibration axis=$axis: endstop active at start — move off the switch first")
             _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
             return
         }
@@ -275,134 +277,52 @@ class PositionManager @Inject constructor(
         protectedAxes.add(axis)
         invalidateAxis(axis)
 
-        // 1. Rough zero: a single fast homing. It only anchors the frame for the sweep —
-        // the precise zero comes from the slow min-switch measurement on the way back.
-        if (!homeAxisAndZero(axis, coarse, 0, fastSpeedSetting)) {
+        // A stale terminal status from an earlier run must not satisfy this run's wait
+        bluetoothService.resetCalibStatus()
+        val parkSteps = unitsToSteps(offsetUnits, axis)
+        val retreatSteps = unitsToSteps(RETREAT_COARSE_QUANTA * coarse, axis)
+        if (!bluetoothService.sendCalibrateCommand(axis, parkSteps, retreatSteps)) {
+            Log.w(tag, "Calibration axis=$axis: firmware has no CALIBRATE support (< 0.1.4)")
             _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
             return
         }
 
-        // 2. One continuous sweep to the far end. The virtual-limit flag goes OFF for the
-        // whole far-end sequence: the firmware force-stops any negative motion on an active
-        // switch, which would silently corrupt the step count — with the flag off, the
-        // reversal below is a normal deceleration and the commanded target stays exact.
-        // 2. Full-speed sweep to the far end; the virtual-limit flag goes OFF for the rest
-        // of the run (its monitor force-stops negative motion on an active switch, which
-        // would corrupt the count during the slow measurements below). The stored max, when
-        // present, only BOUNDS the sweep as grind protection — it never drives the speed.
-        setVirtualLimitForAxis(axis, false)
-        delay(VL_TOGGLE_SETTLE_MS)
-        _calibration.value = CalibrationState(axis, CalibrationPhase.MEASURING)
-        // No distance assumptions at all — obtaining the span IS the point of calibrating,
-        // so the sweep just drives until the switch answers. The only guards are the
-        // timeout below and the Cancel button, both ending in a force-stop.
-        // Overruns and estimate errors scale with how far the axis travels per BLE latency,
-        // so all margins are speed-proportional with the quanta-based floor
-        val fastUnitsPerSec = unitsPerSecond(axis)
-        val stopBackoffUnits = maxOf(2 * FINE_BACKOFF_COARSE * coarse, 0.3f * fastUnitsPerSec)
-        val returnMarginUnits = maxOf(ESCAPE_COARSE_QUANTA * coarse, 0.5f * fastUnitsPerSec)
-        val sweepStartUnits = stepsToUnits(stepCounts[axis], axis)
-        // The frame will not survive the coming force stop — don't show a running-away
-        // coordinate in the meantime
-        invalidateAxis(axis)
-        val sweepStartMs = System.currentTimeMillis()
-        val hitsBefore = bluetoothService.limitHitCounts.value.at(axis)
-        sendAxisMove(axis, SWEEP_STEPS_UNBOUNDED)
-        val hit = withTimeoutOrNull(SWEEP_TIMEOUT_MS) {
-            bluetoothService.limitHitCounts.first { it.at(axis) > hitsBefore }
+        // Mirror the device's phases and wait for a terminal one
+        val terminal = withTimeoutOrNull(CALIB_TOTAL_TIMEOUT_MS) {
+            bluetoothService.calibStatus
+                .filterNotNull()
+                .filter { it.axis == axis }
+                .onEach { _calibration.value = CalibrationState(axis, mapDevicePhase(it.phase)) }
+                .first {
+                    it.phase == DeviceCalibStatus.PHASE_DONE ||
+                            it.phase == DeviceCalibStatus.PHASE_FAILED
+                }
         }
-        if (hit == null) {
-            Log.w(tag, "Calibration axis=$axis: no endstop hit within the sweep timeout")
-            bluetoothService.sendHomeCommand(false, false, false) // stop the unbounded move
+        if (terminal == null) {
+            Log.w(tag, "Calibration axis=$axis: no terminal status from the device, aborting")
+            bluetoothService.sendCalibrateAbort()
             _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
             return
         }
-        val elapsedMs = System.currentTimeMillis() - sweepStartMs
-        val estimatedMax = sweepStartUnits + stepsToUnits(profileDistanceSteps(elapsedMs, axis), axis)
-        // Instant stop, the same forceStop the firmware's homing uses: HOME with an empty
-        // axis mask runs stop_all_axes(). Overrun past the switch is BLE latency travel
-        // only — no deceleration distance. The force stop desyncs the commanded count, so
-        // from here until the min-switch re-anchor the frame is relative-only.
-        bluetoothService.sendHomeCommand(false, false, false)
-        Log.i(tag, "Calibration axis=$axis: endstop after ${elapsedMs}ms, estimated max=$estimatedMax, force-stopped")
-        delay(STOP_SETTLE_MS)
-        invalidateAxis(axis)
-
-        // 3. Back off the switch and measure it precisely with the slow approach
-        _calibration.value = CalibrationState(axis, CalibrationPhase.BACKOFF)
-        jog(axis, -stopBackoffUnits)
-        var extraRetreats = 0
-        while (limitActive(axis) && extraRetreats < 3) {
-            jog(axis, -FINE_BACKOFF_COARSE * coarse)
-            extraRetreats++
-        }
-        if (limitActive(axis)) {
-            Log.w(tag, "Calibration axis=$axis: could not back off the far endstop")
-            _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
-            return
-        }
-        setAxisSpeedForAxis(axis, slowSpeedSetting)
-        delay(SPEED_SETTLE_MS)
-        if (!locateSwitch(axis, direction = 1, coarse, fine, seekBound = stopBackoffUnits + 6 * coarse)) {
-            _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
-            return
-        }
-        val maxTriggerSteps = stepCounts[axis]
-
-        // 4. Fast return to just short of the min switch. The margin comes from THIS run's
-        // own sweep estimate (±BLE latency travel), not from anything stored.
-        setAxisSpeedForAxis(axis, fastSpeedSetting)
-        delay(SPEED_SETTLE_MS)
-        _calibration.value = CalibrationState(axis, CalibrationPhase.MEASURING)
-        val offsetUnits = _settings.value.homeOffset.at(axis)
-        val returnUnits = estimatedMax + offsetUnits - returnMarginUnits
-        val returnSteps = unitsToSteps(returnUnits, axis)
-        sendAxisMove(axis, -returnSteps)
-        stepCounts[axis] -= returnSteps
-        publish()
-        delay(moveDurationMs(returnSteps, axis))
-        if (limitActive(axis)) {
-            Log.w(tag, "Calibration axis=$axis: min endstop already active after the return")
+        if (terminal.phase == DeviceCalibStatus.PHASE_FAILED) {
+            Log.w(tag, "Calibration axis=$axis: device reported failure")
             _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
             return
         }
 
-        // 5. Measure the min switch precisely the same way — this anchors the zero
-        setAxisSpeedForAxis(axis, slowSpeedSetting)
-        delay(SPEED_SETTLE_MS)
-        if (!locateSwitch(axis, direction = -1, coarse, fine, seekBound = returnMarginUnits + 6 * coarse)) {
-            _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
-            return
-        }
-        val minTriggerSteps = stepCounts[axis]
-
-        // 6. Both switches are now slow-measured marks in the same relative frame:
-        // max = trigger-to-trigger distance minus the offset that defines 0
-        val measuredMax = stepsToUnits(maxTriggerSteps - minTriggerSteps, axis) - offsetUnits
-        if (abs(measuredMax - estimatedMax) > maxOf(5 * coarse, 0.4f * fastUnitsPerSec)) {
-            Log.w(tag, "Calibration axis=$axis: measured max=$measuredMax implausible vs estimate=$estimatedMax")
+        // Let the parked position land before trusting the frame
+        delay(FW_POSITION_SYNC_MS)
+        val spanUnits = stepsToUnits(terminal.spanSteps, axis)
+        val measuredMax = spanUnits - offsetUnits
+        if (spanUnits <= coarse) {
+            Log.w(tag, "Calibration axis=$axis: span=$spanUnits is not plausible")
             _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
             return
         }
 
-        // 7. Rise from the min trigger by the offset — that point IS coordinate 0
-        setAxisSpeedForAxis(axis, fastSpeedSetting)
-        delay(SPEED_SETTLE_MS)
-        _calibration.value = CalibrationState(axis, CalibrationPhase.OFFSET)
-        val offsetSteps = unitsToSteps(offsetUnits, axis)
-        if (offsetSteps != 0) {
-            sendAxisMove(axis, offsetSteps)
-            delay(moveDurationMs(offsetSteps, axis))
-        }
-        stepCounts[axis] = 0
+        // The device parked at the home offset, i.e. at app coordinate 0
         validAxes[axis] = true
         publish()
-        if (offsetSteps > 0 && limitActive(axis)) {
-            Log.w(tag, "Calibration axis=$axis: min endstop still active at parked 0")
-            invalidateAxis(axis)
-            _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
-            return
-        }
 
         val settings = _settings.value
         saveSettings(
@@ -412,185 +332,20 @@ class PositionManager @Inject constructor(
             )
         )
         _calibration.value = CalibrationState(axis, CalibrationPhase.DONE)
-        Log.i(tag, "Axis $axis calibrated: min=${-offsetUnits} max=$measuredMax, parked at 0")
+        Log.i(tag, "Axis $axis calibrated (hardware): span=$spanUnits min=${-offsetUnits} max=$measuredMax, parked at 0")
     }
 
-    /**
-     * Precisely locate the switch lying in [direction] (+1 toward max, -1 toward min):
-     * slow continuous seek until the hit counter fires, smooth counter-stop (the count
-     * survives — firmware move() is relative to the current target), back off a little,
-     * then a fine quantized creep. On success stepCounts[axis] is the commanded count at
-     * the trigger, accurate to the fine quantum. Expects: slow speed set, switch inactive,
-     * virtual limit off.
-     */
-    private suspend fun locateSwitch(
-        axis: Int,
-        direction: Int,
-        coarse: Float,
-        fine: Float,
-        seekBound: Float
-    ): Boolean {
-        _calibration.value = CalibrationState(axis, CalibrationPhase.FINE)
-        val seekStartSteps = stepCounts[axis]
-        val seekStartMs = System.currentTimeMillis()
-        val seekSteps = unitsToSteps(seekBound, axis) * direction
-        val hitsBefore = bluetoothService.limitHitCounts.value.at(axis)
-        sendAxisMove(axis, seekSteps)
-        stepCounts[axis] += seekSteps
-        publish()
-        val hit = withTimeoutOrNull(moveDurationMs(seekSteps, axis) + 2_000) {
-            bluetoothService.limitHitCounts.first { it.at(axis) > hitsBefore }
-        }
-        if (hit == null) {
-            Log.w(tag, "locateSwitch axis=$axis dir=$direction: no hit within $seekBound")
-            return false
-        }
-        // Smooth counter-stop just short of the estimated trigger; at the slow speed the
-        // overrun into the switch zone is a couple of units at most
-        val elapsed = System.currentTimeMillis() - seekStartMs
-        val estTriggerSteps = seekStartSteps + profileDistanceSteps(elapsed, axis) * direction
-        val parkSteps = estTriggerSteps - unitsToSteps(FINE_BACKOFF_COARSE * coarse, axis) * direction
-        val counterSteps = parkSteps - stepCounts[axis]
-        sendAxisMove(axis, counterSteps)
-        stepCounts[axis] += counterSteps
-        publish()
-        delay(moveDurationMs(unitsToSteps(2 * FINE_BACKOFF_COARSE * coarse, axis), axis) + 1_000)
-        var retreats = 0
-        while (limitActive(axis) && retreats < 3) {
-            jog(axis, -direction * FINE_BACKOFF_COARSE * coarse)
-            retreats++
-        }
-        if (limitActive(axis)) {
-            Log.w(tag, "locateSwitch axis=$axis dir=$direction: switch would not release")
-            return false
-        }
-        // Fine quantized creep to the trigger
-        val fineHitsBefore = bluetoothService.limitHitCounts.value.at(axis)
-        var travel = 0f
-        while (!limitActive(axis) &&
-            bluetoothService.limitHitCounts.value.at(axis) == fineHitsBefore
-        ) {
-            if (travel > 5 * coarse) {
-                Log.w(tag, "locateSwitch axis=$axis dir=$direction: fine creep never hit")
-                return false
-            }
-            jog(axis, direction * fine)
-            travel += fine
-        }
-        return true
+    private fun mapDevicePhase(phase: Int): CalibrationPhase = when (phase) {
+        DeviceCalibStatus.PHASE_SEEK_MIN_FAST,
+        DeviceCalibStatus.PHASE_SEEK_MIN_SLOW -> CalibrationPhase.HOMING
+        DeviceCalibStatus.PHASE_RETREAT_MIN -> CalibrationPhase.CLEARING
+        DeviceCalibStatus.PHASE_SEEK_MAX_FAST -> CalibrationPhase.MEASURING
+        DeviceCalibStatus.PHASE_RETREAT_MAX -> CalibrationPhase.BACKOFF
+        DeviceCalibStatus.PHASE_SEEK_MAX_SLOW -> CalibrationPhase.FINE
+        DeviceCalibStatus.PHASE_PARK -> CalibrationPhase.OFFSET
+        DeviceCalibStatus.PHASE_DONE -> CalibrationPhase.DONE
+        else -> CalibrationPhase.FAILED
     }
-
-    /**
-     * Establish coordinate 0 for [axis]: fast homing seek, then — when the slow/fast speed
-     * settings are provided — a small retreat and a slow re-seek for a precise anchor, and
-     * finally the home-offset move that defines 0. Returns false on timeout.
-     */
-    private suspend fun homeAxisAndZero(
-        axis: Int,
-        coarse: Float,
-        slowSpeedSetting: Int,
-        fastSpeedSetting: Int
-    ): Boolean {
-        if (!homeAxisOnce(axis)) return false
-
-        if (slowSpeedSetting in 1 until fastSpeedSetting) {
-            // Retreat a little and re-seek slowly: homing stops on a 50 ms switch poll, so
-            // the anchor's repeatability is proportional to the approach speed
-            _calibration.value = CalibrationState(axis, CalibrationPhase.CLEARING)
-            jog(axis, 2 * coarse) // positive = away from the min switch, never force-stopped
-            setAxisSpeedForAxis(axis, slowSpeedSetting)
-            delay(SPEED_SETTLE_MS)
-            val ok = homeAxisOnce(axis)
-            setAxisSpeedForAxis(axis, fastSpeedSetting)
-            delay(SPEED_SETTLE_MS)
-            if (!ok) return false
-        }
-
-        _calibration.value = CalibrationState(axis, CalibrationPhase.OFFSET)
-        val offsetSteps = unitsToSteps(_settings.value.homeOffset.at(axis), axis)
-        if (offsetSteps != 0) {
-            sendAxisMove(axis, offsetSteps)
-            delay(moveDurationMs(offsetSteps, axis))
-        }
-        stepCounts[axis] = 0
-        validAxes[axis] = true
-        publish()
-        return true
-    }
-
-    /** One homing seek of [axis]; waits out the firmware's post-homing settle. */
-    private suspend fun homeAxisOnce(axis: Int): Boolean {
-        _calibration.value = CalibrationState(axis, CalibrationPhase.HOMING)
-        bluetoothService.sendHomeCommand(axis == 0, axis == 1, axis == 2)
-        // The status flow may still hold homed=true from an earlier homing; the firmware
-        // notifies homed=false the moment homing starts — wait for that fresh start first,
-        // otherwise the offset would be applied while the axis is still travelling
-        if (withTimeoutOrNull(HOMING_START_TIMEOUT_MS) {
-                bluetoothService.homeStatus.first { !it.homed.at(axis) }
-            } == null
-        ) {
-            Log.w(tag, "Homing axis=$axis: no fresh start notification")
-            return false
-        }
-        if (withTimeoutOrNull(HOMING_TIMEOUT_MS) {
-                bluetoothService.homeStatus.first { it.homed.at(axis) }
-            } == null
-        ) {
-            Log.w(tag, "Homing axis=$axis: timed out")
-            return false
-        }
-        Log.i(tag, "Homing axis=$axis: homed")
-        // The firmware rejects MOVE while its homing flag is still set and clears the flag
-        // shortly after sending the homed notification — a silently dropped follow-up move
-        // would shift the whole coordinate system
-        delay(HOMED_SETTLE_MS)
-        return true
-    }
-
-    private fun setAxisSpeedForAxis(axis: Int, value: Int) {
-        val current = bluetoothService.axisSpeed.value
-        bluetoothService.setAxisSpeed(
-            if (axis == 0) value else current.first,
-            if (axis == 1) value else current.second,
-            if (axis == 2) value else current.third
-        )
-    }
-
-    private fun setVirtualLimitForAxis(axis: Int, enabled: Boolean) {
-        val current = bluetoothService.virtualLimit.value
-        bluetoothService.setVirtualLimit(
-            if (axis == 0) enabled else current.first,
-            if (axis == 1) enabled else current.second,
-            if (axis == 2) enabled else current.third
-        )
-    }
-
-    /** Steps covered [elapsedMs] into a move, following the firmware's speed profile. */
-    private fun profileDistanceSteps(elapsedMs: Long, axis: Int): Int {
-        val speed = realSpeedStepsPerSec(axis)
-        val accel = bluetoothService.axisAccel.value.at(axis).coerceAtLeast(1).toFloat()
-        val t = elapsedMs / 1000f
-        val rampTime = speed / accel
-        val steps = if (t <= rampTime) {
-            0.5f * accel * t * t
-        } else {
-            speed * t - 0.5f * speed * speed / accel
-        }
-        return steps.roundToInt()
-    }
-
-    /** One quantized calibration move: command it, count it, wait out its estimated duration. */
-    private suspend fun jog(axis: Int, units: Float) {
-        val steps = unitsToSteps(units, axis)
-        val waitMs = moveDurationMs(steps, axis)
-        Log.d(tag, "jog axis=$axis units=$units steps=$steps wait=${waitMs}ms limit=${limitActive(axis)}")
-        sendAxisMove(axis, steps)
-        stepCounts[axis] += steps
-        publish()
-        delay(waitMs)
-    }
-
-    private fun limitActive(axis: Int): Boolean = bluetoothService.limitStatus.value.at(axis)
 
     // ========================== Home offset ==========================
 
@@ -645,14 +400,6 @@ class PositionManager @Inject constructor(
     private fun realSpeedStepsPerSec(axis: Int): Float =
         bluetoothService.axisSpeed.value.at(axis).coerceAtLeast(10) / 10f
 
-    /** Actual axis speed in its own unit (mm/s or deg/s) at the current settings. */
-    private fun unitsPerSecond(axis: Int): Float {
-        val microsteps = bluetoothService.microsteps.value.at(axis)
-        if (microsteps == 0) return 0f
-        return realSpeedStepsPerSec(axis) / microsteps *
-                bluetoothService.unitsPerStep.value.at(axis)
-    }
-
     /** The device moves in STEP pulses (microsteps) while `units per step` is per full step. */
     private fun unitsToSteps(units: Float, axis: Int): Int {
         val unitsPerStep = bluetoothService.unitsPerStep.value.at(axis)
@@ -693,36 +440,21 @@ class PositionManager @Inject constructor(
     private companion object {
         // Matches the firmware's HOMING_TIMEOUT_MS (90 s) plus margin
         const val HOMING_TIMEOUT_MS = 120_000L
-        const val HOMING_START_TIMEOUT_MS = 5_000L
         const val MOVE_SETTLE_MS = 300L
         // The firmware's homing task clears its "homing active" flag (which rejects MOVE
         // commands) up to one 50 ms tick after notifying homed — wait it out
         const val HOMED_SETTLE_MS = 300L
-        // Round trip for a virtual-limit flag or axis-speed write before the move that
-        // depends on it
-        const val VL_TOGGLE_SETTLE_MS = 400L
-        const val SPEED_SETTLE_MS = 600L
-        // Slow stage for the precise seeks: a fifth of the configured speed, floored
-        const val SLOW_SPEED_DIVISOR = 5
-        const val SLOW_SPEED_MIN = 1_000
-        // After the empty-mask HOME force-stop: covers the firmware's brief homing-active
-        // window (rejects MOVE) plus the stop itself
-        const val STOP_SETTLE_MS = 700L
+        // One 200 ms device-position notification interval plus margin — waited out before
+        // trusting the synced frame
+        const val FW_POSITION_SYNC_MS = 500L
 
-        // Calibration quanta: the far endstop does not stop the motor (the firmware only stops
-        // moves toward it in the negative direction), so max is found by creeping — accuracy is
-        // the fine quantum, overshoot past the switch is at most one coarse quantum
+        // Reference quantum per unit type: sizes the calibration retreat and sanity checks
         const val COARSE_QUANTUM_MM = 5f
-        const val FINE_QUANTUM_MM = 0.5f
         const val COARSE_QUANTUM_DEG = 2f
-        const val FINE_QUANTUM_DEG = 0.2f
-        // Return margin and the small backoff before a fine creep, in coarse quanta
-        const val ESCAPE_COARSE_QUANTA = 6
-        const val FINE_BACKOFF_COARSE = 2
-        // The sweep drives "forever" — it ends on the switch hit, the timeout force-stop,
-        // or the user's Cancel (also a force-stop)
-        const val SWEEP_STEPS_UNBOUNDED = 100_000_000
-        const val SWEEP_TIMEOUT_MS = 180_000L
+        // Endstop back-off before the firmware's slow re-seek, in coarse quanta
+        const val RETREAT_COARSE_QUANTA = 2
+        // The whole hardware sequence (two full transits and the seeks) must fit in this
+        const val CALIB_TOTAL_TIMEOUT_MS = 300_000L
     }
 }
 

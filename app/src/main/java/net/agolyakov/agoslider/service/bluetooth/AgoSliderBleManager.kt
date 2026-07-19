@@ -29,6 +29,8 @@ class AgoSliderManager(
     private val powerInfoHandler: PowerInfoReadCharacteristicHandler,
     private val powerInfoStringHandler: PowerInfoStringReadCharacteristicHandler,
     private val limitHandler: LimitReadCharacteristicHandler,
+    private val positionHandler: PositionReadCharacteristicHandler,
+    private val calibStatusHandler: CalibStatusReadCharacteristicHandler,
     private val homeHandler: HomeReadCharacteristicHandler,
     private val motEnHandler: MotEnReadCharacteristicHandler,
     private val versionHandler: VersionReadCharacteristicHandler,
@@ -44,6 +46,8 @@ class AgoSliderManager(
     private var homeCharacteristic: BluetoothGattCharacteristic? = null
     private var limitCharacteristic: BluetoothGattCharacteristic? = null
     private var moveCharacteristic: BluetoothGattCharacteristic? = null
+    private var positionCharacteristic: BluetoothGattCharacteristic? = null
+    private var calibCharacteristic: BluetoothGattCharacteristic? = null
 
     private var battLevelCharacteristic: BluetoothGattCharacteristic? = null
     private var pwrInfoCharacteristic: BluetoothGattCharacteristic? = null
@@ -71,6 +75,10 @@ class AgoSliderManager(
         homeCharacteristic = service.getCharacteristic(HOME_CHAR_UUID)
         limitCharacteristic = service.getCharacteristic(LIMIT_CHAR_UUID)
         moveCharacteristic = service.getCharacteristic(MOVE_CHAR_UUID)
+        // Optional — present from firmware 0.1.4 on; older devices must keep working,
+        // so they are deliberately NOT part of the mandatory check below
+        positionCharacteristic = service.getCharacteristic(POSITION_CHAR_UUID)
+        calibCharacteristic = service.getCharacteristic(CALIB_CHAR_UUID)
 
         battLevelCharacteristic = service.getCharacteristic(BATT_LEVEL_CHAR_UUID)
         pwrInfoCharacteristic = service.getCharacteristic(PWR_INFO_CHAR_UUID)
@@ -119,6 +127,8 @@ class AgoSliderManager(
         homeCharacteristic = null
         limitCharacteristic = null
         moveCharacteristic = null
+        positionCharacteristic = null
+        calibCharacteristic = null
         battLevelCharacteristic = null
         pwrInfoCharacteristic = null
         pwrInfoStrCharacteristic = null
@@ -154,6 +164,8 @@ class AgoSliderManager(
         enableNotification(motEnCharacteristic, motEnHandler)
         enableNotification(homeCharacteristic, homeHandler)
         enableNotification(limitCharacteristic, limitHandler)
+        enableNotification(positionCharacteristic, positionHandler)
+        enableNotification(calibCharacteristic, calibStatusHandler)
         enableNotification(battLevelCharacteristic, batteryLevelHandler)
         enableNotification(pwrInfoCharacteristic, powerInfoHandler)
         enableNotification(pwrInfoStrCharacteristic, powerInfoStringHandler)
@@ -194,6 +206,13 @@ class AgoSliderManager(
     fun readLimitCharacteristic() {
         readCharacteristic(limitCharacteristic)
             .with { device, data -> limitHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
+    }
+
+    fun readPositionCharacteristic() {
+        val characteristic = positionCharacteristic ?: return // absent on older firmware
+        readCharacteristic(characteristic)
+            .with { device, data -> positionHandler.onReadCharacteristicCallback(device, data) }
             .enqueue()
     }
 
@@ -281,6 +300,27 @@ class AgoSliderManager(
         if (homeC) cmd = cmd or 0x20
         if (homeB) cmd = cmd or 0x40
         writeCharacteristic(homeCharacteristic, byteArrayOf(cmd.toByte()), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+    }
+
+    /**
+     * Start hardware calibration of [axis] (0=X, 1=C, 2=B). Returns false when the
+     * firmware has no CALIBRATE characteristic (pre-0.1.4).
+     */
+    fun writeCalibrateCommand(axis: Int, parkOffsetSteps: Int, retreatSteps: Int): Boolean {
+        val characteristic = calibCharacteristic ?: return false
+        val buffer = java.nio.ByteBuffer.allocate(9).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        buffer.put(axis.toByte())
+        buffer.putInt(parkOffsetSteps)
+        buffer.putInt(retreatSteps)
+        writeCharacteristic(characteristic, buffer.array(), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+        return true
+    }
+
+    /** Abort a running hardware calibration (force-stops the axis on the device). */
+    fun writeCalibrateAbort(): Boolean {
+        val characteristic = calibCharacteristic ?: return false
+        writeCharacteristic(characteristic, byteArrayOf(0xFF.toByte()), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+        return true
     }
 
     fun writeMoveCommand(x: Int, c: Int, b: Int) {
@@ -397,6 +437,8 @@ class AgoSliderManager(
         val HOME_CHAR_UUID: UUID         = UUID.fromString("0000F002-0000-1000-8000-00805F9B34FB")
         val LIMIT_CHAR_UUID: UUID        = UUID.fromString("0000F003-0000-1000-8000-00805F9B34FB")
         val MOVE_CHAR_UUID: UUID         = UUID.fromString("0000F004-0000-1000-8000-00805F9B34FB")
+        val POSITION_CHAR_UUID: UUID     = UUID.fromString("0000F005-0000-1000-8000-00805F9B34FB")
+        val CALIB_CHAR_UUID: UUID        = UUID.fromString("0000F006-0000-1000-8000-00805F9B34FB")
 
         val BATT_LEVEL_CHAR_UUID: UUID   = UUID.fromString("0000F020-0000-1000-8000-00805F9B34FB")
         val PWR_INFO_CHAR_UUID: UUID     = UUID.fromString("0000F021-0000-1000-8000-00805F9B34FB")
