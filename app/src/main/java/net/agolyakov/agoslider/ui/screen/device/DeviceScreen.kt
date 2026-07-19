@@ -47,6 +47,8 @@ import net.agolyakov.agoslider.data.model.position.AxisCoordinates
 import net.agolyakov.agoslider.data.model.position.CalibrationState
 import net.agolyakov.agoslider.data.model.position.PositioningSettings
 import net.agolyakov.agoslider.data.model.power.PowerSample
+import net.agolyakov.agoslider.data.model.scenario.ScenarioStatus
+import net.agolyakov.agoslider.service.scenario.FocusScenarioManager
 import net.agolyakov.agoslider.navigation.Screen
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
 
@@ -96,6 +98,8 @@ fun DeviceScreen(
     val firmwareVersion by viewModel.firmwareVersion.collectAsState()
     val powerInfoString by viewModel.powerInfoString.collectAsState()
     val powerHistory by viewModel.powerHistory.collectAsState()
+    val scenarioState by viewModel.scenarioState.collectAsState()
+    val scenarioStatus by viewModel.scenarioStatus.collectAsState()
 
     val moveX by viewModel.moveX.collectAsState()
     val moveC by viewModel.moveC.collectAsState()
@@ -171,6 +175,14 @@ fun DeviceScreen(
         onCancelCalibration = viewModel::cancelCalibration,
         onMotorsEnabledChange = viewModel::setMotorsEnabled,
         onSendHomeCommand = viewModel::sendHomeCommand,
+        scenarioState = scenarioState,
+        scenarioStatus = scenarioStatus,
+        onJogScenarioC = viewModel::jogScenarioC,
+        onJogScenarioX = viewModel::jogScenarioX,
+        onMarkScenarioAim = viewModel::markScenarioAim,
+        onClearScenarioAims = viewModel::clearScenarioAims,
+        onStartScenario = viewModel::startScenario,
+        onStopScenario = viewModel::stopScenario,
         onSendMoveCommand = viewModel::sendMoveCommand,
         onMoveXChange = viewModel::updateMoveX,
         onMoveCChange = viewModel::updateMoveC,
@@ -224,6 +236,14 @@ fun DeviceScreenContent(
     onCancelCalibration: () -> Unit,
     onMotorsEnabledChange: (Boolean) -> Unit,
     onSendHomeCommand: (Boolean, Boolean, Boolean) -> Unit,
+    scenarioState: FocusScenarioManager.State,
+    scenarioStatus: ScenarioStatus?,
+    onJogScenarioC: (Float) -> Unit,
+    onJogScenarioX: (Float) -> Unit,
+    onMarkScenarioAim: (Float) -> Unit,
+    onClearScenarioAims: () -> Unit,
+    onStartScenario: (Float, Float, Float, Float?) -> Unit,
+    onStopScenario: () -> Unit,
     onSendMoveCommand: () -> Unit,
     onMoveXChange: (Int) -> Unit,
     onMoveCChange: (Int) -> Unit,
@@ -276,7 +296,16 @@ fun DeviceScreenContent(
             when (selectedTab) {
                 DeviceTab.Motion -> MotionTabContent(
                     homeStatus = homeStatus,
-                    onSendHomeCommand = onSendHomeCommand
+                    scenarioState = scenarioState,
+                    scenarioStatus = scenarioStatus,
+                    xPosition = coordinates.units.first.takeIf { coordinates.valid.first },
+                    onSendHomeCommand = onSendHomeCommand,
+                    onJogScenarioC = onJogScenarioC,
+                    onJogScenarioX = onJogScenarioX,
+                    onMarkScenarioAim = onMarkScenarioAim,
+                    onClearScenarioAims = onClearScenarioAims,
+                    onStartScenario = onStartScenario,
+                    onStopScenario = onStopScenario
                 )
 
                 DeviceTab.Service -> ServiceTabContent(
@@ -459,6 +488,14 @@ fun DeviceScreenPreview(darkTheme: Boolean, initialTab: DeviceTab = DeviceTab.Mo
             onCancelCalibration = {},
             onMotorsEnabledChange = {},
             onSendHomeCommand = { _, _, _ -> },
+            scenarioState = FocusScenarioManager.State(),
+            scenarioStatus = null,
+            onJogScenarioC = {},
+            onJogScenarioX = {},
+            onMarkScenarioAim = {},
+            onClearScenarioAims = {},
+            onStartScenario = { _, _, _, _ -> },
+            onStopScenario = {},
             onSendMoveCommand = {},
             onMoveXChange = {},
             onMoveCChange = {},

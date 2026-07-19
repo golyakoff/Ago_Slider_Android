@@ -25,6 +25,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import net.agolyakov.agoslider.R
 import net.agolyakov.agoslider.data.model.ble.HomeStatus
+import net.agolyakov.agoslider.data.model.scenario.ScenarioStatus
+import net.agolyakov.agoslider.service.scenario.FocusScenarioManager
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
 
 // ----------------------------------------------------------------------------
@@ -34,7 +36,16 @@ import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
 @Composable
 fun MotionTabContent(
     homeStatus: HomeStatus,
-    onSendHomeCommand: (Boolean, Boolean, Boolean) -> Unit
+    scenarioState: FocusScenarioManager.State,
+    scenarioStatus: ScenarioStatus?,
+    xPosition: Float?,
+    onSendHomeCommand: (Boolean, Boolean, Boolean) -> Unit,
+    onJogScenarioC: (Float) -> Unit,
+    onJogScenarioX: (Float) -> Unit,
+    onMarkScenarioAim: (Float) -> Unit,
+    onClearScenarioAims: () -> Unit,
+    onStartScenario: (Float, Float, Float, Float?) -> Unit,
+    onStopScenario: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -113,6 +124,18 @@ fun MotionTabContent(
                 }
             }
         }
+
+        FocusScenarioCard(
+            state = scenarioState,
+            status = scenarioStatus,
+            xPosition = xPosition,
+            onJogC = onJogScenarioC,
+            onJogX = onJogScenarioX,
+            onMarkAim = onMarkScenarioAim,
+            onClearAims = onClearScenarioAims,
+            onStart = onStartScenario,
+            onStop = onStopScenario
+        )
     }
 }
 
@@ -136,7 +159,16 @@ private fun MotionTabPreview(darkTheme: Boolean) {
     AgoSliderTheme(darkTheme) {
         MotionTabContent(
             homeStatus = HomeStatus(Triple(true, true, false), Triple(true, false, false)),
-            onSendHomeCommand = { _, _, _ -> }
+            scenarioState = FocusScenarioManager.State(),
+            scenarioStatus = null,
+            xPosition = null,
+            onSendHomeCommand = { _, _, _ -> },
+            onJogScenarioC = {},
+            onJogScenarioX = {},
+            onMarkScenarioAim = {},
+            onClearScenarioAims = {},
+            onStartScenario = { _, _, _, _ -> },
+            onStopScenario = {}
         )
     }
 }

@@ -31,6 +31,7 @@ class AgoSliderManager(
     private val limitHandler: LimitReadCharacteristicHandler,
     private val positionHandler: PositionReadCharacteristicHandler,
     private val calibStatusHandler: CalibStatusReadCharacteristicHandler,
+    private val scenarioStatusHandler: ScenarioStatusReadCharacteristicHandler,
     private val homeHandler: HomeReadCharacteristicHandler,
     private val motEnHandler: MotEnReadCharacteristicHandler,
     private val versionHandler: VersionReadCharacteristicHandler,
@@ -48,6 +49,7 @@ class AgoSliderManager(
     private var moveCharacteristic: BluetoothGattCharacteristic? = null
     private var positionCharacteristic: BluetoothGattCharacteristic? = null
     private var calibCharacteristic: BluetoothGattCharacteristic? = null
+    private var scenarioCharacteristic: BluetoothGattCharacteristic? = null
 
     private var battLevelCharacteristic: BluetoothGattCharacteristic? = null
     private var pwrInfoCharacteristic: BluetoothGattCharacteristic? = null
@@ -79,6 +81,7 @@ class AgoSliderManager(
         // so they are deliberately NOT part of the mandatory check below
         positionCharacteristic = service.getCharacteristic(POSITION_CHAR_UUID)
         calibCharacteristic = service.getCharacteristic(CALIB_CHAR_UUID)
+        scenarioCharacteristic = service.getCharacteristic(SCENARIO_CHAR_UUID)
 
         battLevelCharacteristic = service.getCharacteristic(BATT_LEVEL_CHAR_UUID)
         pwrInfoCharacteristic = service.getCharacteristic(PWR_INFO_CHAR_UUID)
@@ -129,6 +132,7 @@ class AgoSliderManager(
         moveCharacteristic = null
         positionCharacteristic = null
         calibCharacteristic = null
+        scenarioCharacteristic = null
         battLevelCharacteristic = null
         pwrInfoCharacteristic = null
         pwrInfoStrCharacteristic = null
@@ -166,6 +170,7 @@ class AgoSliderManager(
         enableNotification(limitCharacteristic, limitHandler)
         enableNotification(positionCharacteristic, positionHandler)
         enableNotification(calibCharacteristic, calibStatusHandler)
+        enableNotification(scenarioCharacteristic, scenarioStatusHandler)
         enableNotification(battLevelCharacteristic, batteryLevelHandler)
         enableNotification(pwrInfoCharacteristic, powerInfoHandler)
         enableNotification(pwrInfoStrCharacteristic, powerInfoStringHandler)
@@ -215,6 +220,42 @@ class AgoSliderManager(
             .with { device, data -> positionHandler.onReadCharacteristicCallback(device, data) }
             .enqueue()
     }
+
+    /**
+     * Read where a scenario got to. This is the path that makes a run survive the phone: the
+     * device keeps going regardless, and a client that was away — or was reinstalled, or
+     * rebooted — asks once on reconnect and learns the outcome.
+     */
+    fun readScenarioCharacteristic() {
+        val characteristic = scenarioCharacteristic ?: return
+        readCharacteristic(characteristic)
+            .with { device, data -> scenarioStatusHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
+    }
+
+    /**
+     * Start a scenario. The framing is shared by every movement pattern — command, pattern id,
+     * duration, then whatever that pattern defines — so a new pattern needs no change here.
+     */
+    fun writeScenarioStart(scenarioId: Int, durationMs: Long, payload: ByteArray): Boolean {
+        val characteristic = scenarioCharacteristic ?: return false
+        val buffer = java.nio.ByteBuffer.allocate(6 + payload.size)
+            .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        buffer.put(0x01)
+        buffer.put(scenarioId.toByte())
+        buffer.putInt(durationMs.toInt())
+        buffer.put(payload)
+        writeCharacteristic(characteristic, buffer.array(), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+        return true
+    }
+
+    fun writeScenarioStop(): Boolean {
+        val characteristic = scenarioCharacteristic ?: return false
+        writeCharacteristic(characteristic, byteArrayOf(0x02), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+        return true
+    }
+
+    fun hasScenarioSupport(): Boolean = scenarioCharacteristic != null
 
     fun readBattLevelCharacteristic() {
         readCharacteristic(battLevelCharacteristic)
@@ -439,6 +480,7 @@ class AgoSliderManager(
         val MOVE_CHAR_UUID: UUID         = UUID.fromString("0000F004-0000-1000-8000-00805F9B34FB")
         val POSITION_CHAR_UUID: UUID     = UUID.fromString("0000F005-0000-1000-8000-00805F9B34FB")
         val CALIB_CHAR_UUID: UUID        = UUID.fromString("0000F006-0000-1000-8000-00805F9B34FB")
+        val SCENARIO_CHAR_UUID: UUID     = UUID.fromString("0000F007-0000-1000-8000-00805F9B34FB")
 
         val BATT_LEVEL_CHAR_UUID: UUID   = UUID.fromString("0000F020-0000-1000-8000-00805F9B34FB")
         val PWR_INFO_CHAR_UUID: UUID     = UUID.fromString("0000F021-0000-1000-8000-00805F9B34FB")

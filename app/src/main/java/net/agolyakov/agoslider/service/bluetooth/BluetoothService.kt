@@ -20,6 +20,7 @@ import net.agolyakov.agoslider.data.model.ble.HomeStatus
 import net.agolyakov.agoslider.data.model.position.DeviceCalibStatus
 import net.agolyakov.agoslider.data.model.position.DevicePosition
 import net.agolyakov.agoslider.data.model.power.PowerSample
+import net.agolyakov.agoslider.data.model.scenario.ScenarioStatus
 import net.agolyakov.agoslider.service.bluetooth.handlers.*
 import no.nordicsemi.android.ble.observer.ConnectionObserver
 import javax.inject.Inject
@@ -89,6 +90,12 @@ class BluetoothService @Inject constructor(
     // Hardware-calibration status notifications (firmware >= 0.1.4); null until one arrives
     private val _calibStatus = MutableStateFlow<DeviceCalibStatus?>(null)
     val calibStatus: StateFlow<DeviceCalibStatus?> = _calibStatus
+
+    // Status of a scenario running on the device. Read once on every connect, then notified:
+    // the run belongs to the slider, so this is how the app finds out what happened while it
+    // was away — or was not even running.
+    private val _scenarioStatus = MutableStateFlow<ScenarioStatus?>(null)
+    val scenarioStatus: StateFlow<ScenarioStatus?> = _scenarioStatus
 
     // Battery level (0-255 raw, convert to percent if needed)
     private val _batteryLevel = MutableStateFlow(0)
@@ -163,6 +170,7 @@ class BluetoothService @Inject constructor(
     private val limitHandler = LimitReadCharacteristicHandler(_limitStatus, _limitHitCounts)
     private val positionHandler = PositionReadCharacteristicHandler(_devicePosition)
     private val calibStatusHandler = CalibStatusReadCharacteristicHandler(_calibStatus)
+    private val scenarioStatusHandler = ScenarioStatusReadCharacteristicHandler(_scenarioStatus)
     private val batteryLevelHandler = BatteryLevelReadCharacteristicHandler(_batteryLevel)
     private val powerInfoHandler = PowerInfoReadCharacteristicHandler(_powerInfo, ::recordPowerSample)
     private val powerInfoStringHandler = PowerInfoStringReadCharacteristicHandler(_powerInfoString)
@@ -197,6 +205,7 @@ class BluetoothService @Inject constructor(
         limitHandler,
         positionHandler,
         calibStatusHandler,
+        scenarioStatusHandler,
         homeHandler,
         motEnHandler,
         versionHandler
@@ -313,6 +322,7 @@ class BluetoothService @Inject constructor(
         bleManager.readMotEnCharacteristic()
         bleManager.readLimitCharacteristic()
         bleManager.readPositionCharacteristic()
+        bleManager.readScenarioCharacteristic()
         bleManager.readBattLevelCharacteristic()
         bleManager.readPowerInfoCharacteristic()
         bleManager.readPowerInfoStringCharacteristic()
@@ -343,6 +353,13 @@ class BluetoothService @Inject constructor(
         bleManager.writeCalibrateCommand(axis, parkOffsetSteps, retreatSteps)
 
     fun sendCalibrateAbort(): Boolean = bleManager.writeCalibrateAbort()
+
+    fun scenarioSupported(): Boolean = bleManager.hasScenarioSupport()
+
+    fun sendScenarioStart(scenarioId: Int, durationMs: Long, payload: ByteArray): Boolean =
+        bleManager.writeScenarioStart(scenarioId, durationMs, payload)
+
+    fun sendScenarioStop(): Boolean = bleManager.writeScenarioStop()
 
     fun setMicrosteps(x: Int, c: Int, b: Int) {
         // Convert Int to Byte according to encoding: 256 -> 0, otherwise the value itself

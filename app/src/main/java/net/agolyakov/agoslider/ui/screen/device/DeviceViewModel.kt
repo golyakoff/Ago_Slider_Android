@@ -10,12 +10,14 @@ import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.data.model.position.PositioningSettings
 import net.agolyakov.agoslider.service.bluetooth.BluetoothService
 import net.agolyakov.agoslider.service.position.PositionManager
+import net.agolyakov.agoslider.service.scenario.FocusScenarioManager
 import javax.inject.Inject
 
 @HiltViewModel
 class DeviceViewModel @Inject constructor(
     private val bluetoothService: BluetoothService,
     private val positionManager: PositionManager,
+    private val focusScenarioManager: FocusScenarioManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -42,6 +44,19 @@ class DeviceViewModel @Inject constructor(
     val powerInfo = bluetoothService.powerInfo
     val powerInfoString = bluetoothService.powerInfoString
     val powerHistory = bluetoothService.powerHistory
+
+    // The scenario runs on the device, so both of these are its report rather than our record
+    val scenarioState = focusScenarioManager.state
+    val scenarioStatus = focusScenarioManager.status
+
+    fun jogScenarioC(deltaDeg: Float) = focusScenarioManager.jogC(deltaDeg)
+    fun jogScenarioX(deltaMm: Float) = focusScenarioManager.jogX(deltaMm)
+    fun markScenarioAim(xTravel: Float) = focusScenarioManager.markAim(xTravel)
+    fun clearScenarioAims() = focusScenarioManager.clearAims()
+    fun startScenario(xTravel: Float, bTravel: Float, seconds: Float, distanceMm: Float?) {
+        focusScenarioManager.start(xTravel, bTravel, seconds, distanceMm)
+    }
+    fun stopScenario() = focusScenarioManager.stop()
     val batteryLevel = bluetoothService.batteryLevel
     val firmwareVersion = bluetoothService.firmwareVersion
 

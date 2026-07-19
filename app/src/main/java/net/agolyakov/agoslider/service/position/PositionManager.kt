@@ -384,6 +384,21 @@ class PositionManager @Inject constructor(
         bluetoothService.axisSpeed.value.at(axis).coerceAtLeast(10).toFloat()
 
     /** The device moves in STEP pulses (microsteps) while `units per step` is per full step. */
+    /** STEP pulses for a distance in an axis's own units — scenarios speak to the device in
+     *  pulses, so they need the same conversion the move commands use. */
+    fun unitsToStepsPublic(units: Float, axis: Int): Int = unitsToSteps(units, axis)
+
+    /** Move an axis to an absolute virtual coordinate, honouring the same soft limits. */
+    fun moveAxisTo(axis: Int, target: Float) {
+        val current = _coordinates.value.units.at(axis)
+        val delta = target - current
+        when (axis) {
+            0 -> moveRelative(delta, 0f, 0f)
+            1 -> moveRelative(0f, delta, 0f)
+            else -> moveRelative(0f, 0f, delta)
+        }
+    }
+
     private fun unitsToSteps(units: Float, axis: Int): Int {
         val unitsPerStep = bluetoothService.unitsPerStep.value.at(axis)
         if (unitsPerStep == 0f) return 0
