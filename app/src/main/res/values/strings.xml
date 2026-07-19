@@ -74,11 +74,11 @@
     <string name="settings_hold_current">Hold current (mA)</string>
     <string name="settings_microsteps">Microsteps</string>
     <string name="settings_invert_dir">Invert direction</string>
-    <string name="settings_axis_unit">Axis unit</string>
+    <string name="settings_axis_unit">Units</string>
     <string name="settings_units_per_step">Units per step</string>
-    <string name="settings_axis_accel">Axis acceleration (steps/sec²)</string>
-    <string name="settings_axis_speed">Default axis speed (steps/sec)</string>
-    <string name="settings_virtual_limit">Virtual limit</string>
+    <string name="settings_axis_accel">Default acceleration (steps/sec²)</string>
+    <string name="settings_axis_speed">Default speed (steps/sec)</string>
+    <string name="settings_virtual_limit">Endstop limits the axis</string>
     <string name="settings_positioning">Virtual coordinates</string>
     <string name="positioning_offset">Offset</string>
     <string name="positioning_min">Min</string>
@@ -117,4 +117,19 @@
     <!-- Permissions -->
     <string name="perm_bluetooth_is_off">The app requires Bluetooth to be turned on</string>
     <string name="perm_not_enough_permissions">The app was not granted the required permissions</string>
+    <string name="service_move_reset">Reset</string>
+    <string name="service_limits_title">Endstops</string>
+    <string name="service_battery_title">Battery</string>
+    <string name="settings_group_electrical">Modes</string>
+    <string name="settings_group_motion">Motion</string>
+    <string name="settings_group_constants">Constants</string>
+    <string name="service_power_voltage">Voltage</string>
+    <string name="service_power_current">Current</string>
+    <string name="service_power_watts">Power</string>
+    <string name="unit_volt">V</string>
+    <string name="unit_ampere">A</string>
+    <string name="unit_watt">W</string>
+    <string name="service_power_chart_empty">Collecting readings…</string>
+    <string name="service_power_chart_span">Last %1$d min of this session</string>
+    <string name="service_power_chart_span_sec">Last %1$d s of this session</string>
 </resources>

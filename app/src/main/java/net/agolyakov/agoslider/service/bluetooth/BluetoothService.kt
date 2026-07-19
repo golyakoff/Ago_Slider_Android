@@ -6,6 +6,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
@@ -13,6 +18,8 @@ import net.agolyakov.agoslider.data.model.ble.AgoSliderDevice
 import net.agolyakov.agoslider.data.model.ble.ConnectionState
 import net.agolyakov.agoslider.data.model.ble.HomeStatus
 import net.agolyakov.agoslider.data.model.position.DeviceCalibStatus
+import net.agolyakov.agoslider.data.model.position.DevicePosition
+import net.agolyakov.agoslider.data.model.power.PowerSample
 import net.agolyakov.agoslider.service.bluetooth.handlers.*
 import no.nordicsemi.android.ble.observer.ConnectionObserver
 import javax.inject.Inject
@@ -76,8 +83,8 @@ class BluetoothService @Inject constructor(
     // Device-reported position in STEP pulses (firmware >= 0.1.4; the firmware zeroes an
     // axis when it completes homing). Null until the first value arrives — which doubles
     // as "this firmware does not support POSITION".
-    private val _devicePosition = MutableStateFlow<Triple<Int, Int, Int>?>(null)
-    val devicePosition: StateFlow<Triple<Int, Int, Int>?> = _devicePosition
+    private val _devicePosition = MutableStateFlow<DevicePosition?>(null)
+    val devicePosition: StateFlow<DevicePosition?> = _devicePosition
 
     // Hardware-calibration status notifications (firmware >= 0.1.4); null until one arrives
     private val _calibStatus = MutableStateFlow<DeviceCalibStatus?>(null)
@@ -94,6 +101,19 @@ class BluetoothService @Inject constructor(
     // Power info string
     private val _powerInfoString = MutableStateFlow("")
     val powerInfoString: StateFlow<String> = _powerInfoString
+
+    // Power readings kept for the duration of a connection, so the Service tab can plot how
+    // voltage, current and power moved. Trimmed to the last POWER_HISTORY_MS and cleared on
+    // every new connection — this is a live session view, not stored telemetry.
+    private val _powerHistory = MutableStateFlow<List<PowerSample>>(emptyList())
+    val powerHistory: StateFlow<List<PowerSample>> = _powerHistory
+
+    private fun recordPowerSample(volts: Float, amperes: Float, watts: Float) {
+        val now = System.currentTimeMillis()
+        val cutoff = now - POWER_HISTORY_MS
+        _powerHistory.value = (_powerHistory.value + PowerSample(now, volts, amperes, watts))
+            .dropWhile { it.timestampMs < cutoff }
+    }
 
     // Microsteps (0=256,1=1,2=2,4,8,16,32,64,128) – stored as integer values
     private val _microsteps = MutableStateFlow(Triple(16, 16, 16))
@@ -144,7 +164,7 @@ class BluetoothService @Inject constructor(
     private val positionHandler = PositionReadCharacteristicHandler(_devicePosition)
     private val calibStatusHandler = CalibStatusReadCharacteristicHandler(_calibStatus)
     private val batteryLevelHandler = BatteryLevelReadCharacteristicHandler(_batteryLevel)
-    private val powerInfoHandler = PowerInfoReadCharacteristicHandler(_powerInfo)
+    private val powerInfoHandler = PowerInfoReadCharacteristicHandler(_powerInfo, ::recordPowerSample)
     private val powerInfoStringHandler = PowerInfoStringReadCharacteristicHandler(_powerInfoString)
 
     private val microstepsHandler = MicrostepsReadCharacteristicHandler(_microsteps)
@@ -185,6 +205,9 @@ class BluetoothService @Inject constructor(
     private val connectionObserver = object : ConnectionObserver {
         override fun onDeviceConnecting(device: BluetoothDevice) {
             _connectionState.value = ConnectionState.Connecting
+            // A new session starts its own history; the previous device's readings would only
+            // show up as a gap of unknown length on the chart
+            _powerHistory.value = emptyList()
         }
 
         override fun onDeviceConnected(device: BluetoothDevice) {
@@ -212,8 +235,27 @@ class BluetoothService @Inject constructor(
         }
     }
 
+    private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
     init {
         bleManager.connectionObserver = connectionObserver
+        // The device samples power every 2 s but only notifies once a reading moves past a
+        // threshold, so on a steady supply the chart would have nothing to draw. Repeat the
+        // last known reading on a timer to keep the series continuous; notifications still
+        // land immediately, and this only fills the quiet stretches between them.
+        serviceScope.launch {
+            while (true) {
+                delay(POWER_SAMPLE_INTERVAL_MS)
+                if (_connectionState.value !is ConnectionState.Ready) continue
+                val last = _powerHistory.value.lastOrNull()
+                if (last == null ||
+                    System.currentTimeMillis() - last.timestampMs >= POWER_SAMPLE_INTERVAL_MS
+                ) {
+                    val (volts, amperes, watts) = _powerInfo.value
+                    recordPowerSample(volts, amperes, watts)
+                }
+            }
+        }
     }
 
     fun connect(device: AgoSliderDevice) {
@@ -397,5 +439,13 @@ class BluetoothService @Inject constructor(
                 connect(it)
             }
         }
+    }
+
+    companion object {
+        /** How far back the session power chart reaches. */
+        const val POWER_HISTORY_MS = 30 * 60 * 1000L
+
+        /** Longest gap the chart tolerates before repeating the last reading. */
+        const val POWER_SAMPLE_INTERVAL_MS = 5_000L
     }
 }

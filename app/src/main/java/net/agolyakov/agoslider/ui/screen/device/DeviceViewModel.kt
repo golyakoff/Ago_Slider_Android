@@ -41,6 +41,7 @@ class DeviceViewModel @Inject constructor(
     val homeStatus = bluetoothService.homeStatus
     val powerInfo = bluetoothService.powerInfo
     val powerInfoString = bluetoothService.powerInfoString
+    val powerHistory = bluetoothService.powerHistory
     val batteryLevel = bluetoothService.batteryLevel
     val firmwareVersion = bluetoothService.firmwareVersion
 

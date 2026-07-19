@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.LinearScale
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -76,6 +77,10 @@ fun SettingsTabContent(
         mutableStateOf<Triple<Float, Float, Float>?>(unitsPerStep)
     }
 
+    // Which group is open. Only one at a time: there are enough cards that leaving several
+    // expanded would bring back the endless scroll the grouping exists to remove.
+    var openGroup by remember { mutableStateOf(SettingsGroupId.ELECTRICAL) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -83,122 +88,153 @@ fun SettingsTabContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        IntSliderTriple(
+        SettingsGroup(
             icon = Icons.Default.Bolt,
-            title = stringResource(R.string.settings_run_current),
-            values = runCurrentEdit,
-            range = CURRENT_RANGE,
-            step = CURRENT_STEP,
-            dirty = runCurrentEdit != runCurrent,
-            onValueChange = { runCurrentEdit = it },
-            onSave = { onRunCurrentChange(runCurrentEdit.first, runCurrentEdit.second, runCurrentEdit.third) }
-        )
-        IntSliderTriple(
-            icon = Icons.Default.PauseCircle,
-            title = stringResource(R.string.settings_hold_current),
-            values = holdCurrentEdit,
-            range = CURRENT_RANGE,
-            step = CURRENT_STEP,
-            dirty = holdCurrentEdit != holdCurrent,
-            onValueChange = { holdCurrentEdit = it },
-            onSave = { onHoldCurrentChange(holdCurrentEdit.first, holdCurrentEdit.second, holdCurrentEdit.third) }
-        )
-        IntDropdownTriple(
-            icon = Icons.Default.LinearScale,
-            title = stringResource(R.string.settings_microsteps),
-            values = microstepsEdit,
-            options = MICROSTEP_OPTIONS,
-            dirty = microstepsEdit != microsteps,
-            onValueChange = { microstepsEdit = it },
-            onSave = { onMicrostepsChange(microstepsEdit.first, microstepsEdit.second, microstepsEdit.third) }
-        )
-        BoolTriple(
-            icon = Icons.Default.SwapHoriz,
-            title = stringResource(R.string.settings_invert_dir),
-            values = invertDirEdit,
-            dirty = invertDirEdit != invertDir,
-            onValueChange = { invertDirEdit = it },
-            onSave = { onInvertDirChange(invertDirEdit.first, invertDirEdit.second, invertDirEdit.third) }
-        )
-        AxisUnitTriple(
-            icon = Icons.Default.Straighten,
-            title = stringResource(R.string.settings_axis_unit),
-            values = axisUnitEdit,
-            dirty = axisUnitEdit != axisUnit,
-            onValueChange = { axisUnitEdit = it },
-            onSave = { onAxisUnitChange(axisUnitEdit.first, axisUnitEdit.second, axisUnitEdit.third) }
-        )
-        FloatTriple(
-            icon = Icons.Default.Tune,
-            title = stringResource(R.string.settings_units_per_step),
-            deviceValues = unitsPerStep,
-            // The edited copy, so the "/step" captions follow the unit radio buttons live
-            axisIsDegrees = axisUnitEdit,
-            dirty = unitsPerStepEdit != null && unitsPerStepEdit != unitsPerStep,
-            onValueChange = { unitsPerStepEdit = it },
-            onSave = {
-                unitsPerStepEdit?.let { onUnitsPerStepChange(it.first, it.second, it.third) }
-            }
-        )
-        IntSliderTriple(
-            icon = Icons.AutoMirrored.Filled.TrendingUp,
-            title = stringResource(R.string.settings_axis_accel),
-            values = axisAccelEdit,
-            range = ACCEL_RANGE,
-            step = ACCEL_STEP,
-            dirty = axisAccelEdit != axisAccel,
-            onValueChange = { axisAccelEdit = it },
-            onSave = { onAxisAccelChange(axisAccelEdit.first, axisAccelEdit.second, axisAccelEdit.third) }
-        )
-        AxisSpeedTriple(
+            title = stringResource(R.string.settings_group_electrical),
+            expanded = openGroup == SettingsGroupId.ELECTRICAL,
+            onToggle = { openGroup = openGroup.toggledWith(SettingsGroupId.ELECTRICAL) }
+        ) {
+            IntSliderTriple(
+                icon = Icons.Default.PlayCircle,
+                title = stringResource(R.string.settings_run_current),
+                values = runCurrentEdit,
+                range = CURRENT_RANGE,
+                step = CURRENT_STEP,
+                dirty = runCurrentEdit != runCurrent,
+                onValueChange = { runCurrentEdit = it },
+                onSave = { onRunCurrentChange(runCurrentEdit.first, runCurrentEdit.second, runCurrentEdit.third) }
+            )
+            IntSliderTriple(
+                icon = Icons.Default.PauseCircle,
+                title = stringResource(R.string.settings_hold_current),
+                values = holdCurrentEdit,
+                range = CURRENT_RANGE,
+                step = CURRENT_STEP,
+                dirty = holdCurrentEdit != holdCurrent,
+                onValueChange = { holdCurrentEdit = it },
+                onSave = { onHoldCurrentChange(holdCurrentEdit.first, holdCurrentEdit.second, holdCurrentEdit.third) }
+            )
+            BoolTriple(
+                icon = Icons.Default.VolumeOff,
+                title = stringResource(R.string.settings_stealthchop),
+                values = stealthChopEdit,
+                dirty = stealthChopEdit != stealthChop,
+                onValueChange = { stealthChopEdit = it },
+                onSave = { onStealthChopChange(stealthChopEdit.first, stealthChopEdit.second, stealthChopEdit.third) }
+            )
+        }
+
+        SettingsGroup(
             icon = Icons.Default.Speed,
-            title = stringResource(R.string.settings_axis_speed),
-            values = axisSpeedEdit,
-            range = SPEED_RANGE,
-            step = SPEED_STEP,
-            // Read the edited copies, so the resulting speed follows a pending change to any
-            // of the values it is derived from, before that change is saved
-            microsteps = microstepsEdit,
-            unitsPerStep = unitsPerStepEdit ?: unitsPerStep,
-            axisIsDegrees = axisUnitEdit,
-            dirty = axisSpeedEdit != axisSpeed,
-            onValueChange = { axisSpeedEdit = it },
-            onSave = { onAxisSpeedChange(axisSpeedEdit.first, axisSpeedEdit.second, axisSpeedEdit.third) }
-        )
-        BoolTriple(
-            icon = Icons.Default.PanTool,
-            title = stringResource(R.string.settings_virtual_limit),
-            values = virtualLimitEdit,
-            dirty = virtualLimitEdit != virtualLimit,
-            onValueChange = { virtualLimitEdit = it },
-            onSave = { onVirtualLimitChange(virtualLimitEdit.first, virtualLimitEdit.second, virtualLimitEdit.third) }
-        )
-        // Virtual coordinate settings — stored on the phone per device, not on the slider
-        PositioningCard(
-            icon = Icons.Default.MyLocation,
-            title = stringResource(R.string.settings_positioning),
-            storedValues = positioning,
-            axisIsDegrees = axisUnitEdit,
-            onSave = onSavePositioning
-        )
-        BoolTriple(
-            icon = Icons.Default.VolumeOff,
-            title = stringResource(R.string.settings_stealthchop),
-            values = stealthChopEdit,
-            dirty = stealthChopEdit != stealthChop,
-            onValueChange = { stealthChopEdit = it },
-            onSave = { onStealthChopChange(stealthChopEdit.first, stealthChopEdit.second, stealthChopEdit.third) }
-        )
+            title = stringResource(R.string.settings_group_motion),
+            expanded = openGroup == SettingsGroupId.MOTION,
+            onToggle = { openGroup = openGroup.toggledWith(SettingsGroupId.MOTION) }
+        ) {
+            IntDropdownTriple(
+                icon = Icons.Default.LinearScale,
+                title = stringResource(R.string.settings_microsteps),
+                values = microstepsEdit,
+                options = MICROSTEP_OPTIONS,
+                dirty = microstepsEdit != microsteps,
+                onValueChange = { microstepsEdit = it },
+                onSave = { onMicrostepsChange(microstepsEdit.first, microstepsEdit.second, microstepsEdit.third) }
+            )
+            IntSliderTriple(
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                title = stringResource(R.string.settings_axis_accel),
+                values = axisAccelEdit,
+                range = ACCEL_RANGE,
+                step = ACCEL_STEP,
+                dirty = axisAccelEdit != axisAccel,
+                onValueChange = { axisAccelEdit = it },
+                onSave = { onAxisAccelChange(axisAccelEdit.first, axisAccelEdit.second, axisAccelEdit.third) }
+            )
+            AxisSpeedTriple(
+                icon = Icons.Default.Speed,
+                title = stringResource(R.string.settings_axis_speed),
+                values = axisSpeedEdit,
+                range = SPEED_RANGE,
+                step = SPEED_STEP,
+                // Read the edited copies, so the resulting speed follows a pending change to any
+                // of the values it is derived from, before that change is saved
+                microsteps = microstepsEdit,
+                unitsPerStep = unitsPerStepEdit ?: unitsPerStep,
+                axisIsDegrees = axisUnitEdit,
+                dirty = axisSpeedEdit != axisSpeed,
+                onValueChange = { axisSpeedEdit = it },
+                onSave = { onAxisSpeedChange(axisSpeedEdit.first, axisSpeedEdit.second, axisSpeedEdit.third) }
+            )
+            BoolTriple(
+                icon = Icons.Default.SwapHoriz,
+                title = stringResource(R.string.settings_invert_dir),
+                values = invertDirEdit,
+                dirty = invertDirEdit != invertDir,
+                onValueChange = { invertDirEdit = it },
+                onSave = { onInvertDirChange(invertDirEdit.first, invertDirEdit.second, invertDirEdit.third) }
+            )
+        }
+
+        SettingsGroup(
+            icon = Icons.Default.Straighten,
+            title = stringResource(R.string.settings_group_constants),
+            expanded = openGroup == SettingsGroupId.CONSTANTS,
+            onToggle = { openGroup = openGroup.toggledWith(SettingsGroupId.CONSTANTS) }
+        ) {
+            AxisUnitTriple(
+                icon = Icons.Default.Straighten,
+                title = stringResource(R.string.settings_axis_unit),
+                values = axisUnitEdit,
+                dirty = axisUnitEdit != axisUnit,
+                onValueChange = { axisUnitEdit = it },
+                onSave = { onAxisUnitChange(axisUnitEdit.first, axisUnitEdit.second, axisUnitEdit.third) }
+            )
+            FloatTriple(
+                icon = Icons.Default.Tune,
+                title = stringResource(R.string.settings_units_per_step),
+                deviceValues = unitsPerStep,
+                // The edited copy, so the "/step" captions follow the unit radio buttons live
+                axisIsDegrees = axisUnitEdit,
+                dirty = unitsPerStepEdit != null && unitsPerStepEdit != unitsPerStep,
+                onValueChange = { unitsPerStepEdit = it },
+                onSave = {
+                    unitsPerStepEdit?.let { onUnitsPerStepChange(it.first, it.second, it.third) }
+                }
+            )
+            // Virtual coordinate settings — stored on the phone per device, not on the slider
+            PositioningCard(
+                icon = Icons.Default.MyLocation,
+                title = stringResource(R.string.settings_positioning),
+                storedValues = positioning,
+                axisIsDegrees = axisUnitEdit,
+                onSave = onSavePositioning
+            )
+            BoolTriple(
+                icon = Icons.Default.PanTool,
+                title = stringResource(R.string.settings_virtual_limit),
+                values = virtualLimitEdit,
+                dirty = virtualLimitEdit != virtualLimit,
+                onValueChange = { virtualLimitEdit = it },
+                onSave = { onVirtualLimitChange(virtualLimitEdit.first, virtualLimitEdit.second, virtualLimitEdit.third) }
+            )
+        }
     }
 }
+
+private enum class SettingsGroupId { NONE, ELECTRICAL, MOTION, CONSTANTS }
+
+/** Tapping the open group's header closes it; tapping another one switches to it. */
+private fun SettingsGroupId.toggledWith(tapped: SettingsGroupId): SettingsGroupId =
+    if (this == tapped) SettingsGroupId.NONE else tapped
 
 private val MICROSTEP_OPTIONS = listOf(1, 2, 4, 8, 16, 32, 64, 128, 256)
 private val CURRENT_RANGE = 200..1200
 private const val CURRENT_STEP = 100
 private val ACCEL_RANGE = 1000..5000
 private const val ACCEL_STEP = 100
-private val SPEED_RANGE = 1000..40000
-private const val SPEED_STEP = 1000
+// Firmware 0.1.5 made the setting mean what it says (it used to run at a tenth of it), so
+// the old 1000..40000 scale now spans speeds the mechanics cannot follow.
+private val SPEED_RANGE = 500..10000
+private const val SPEED_STEP = 500
 
 // ----------------------------------------------------------------------------
 // Previews

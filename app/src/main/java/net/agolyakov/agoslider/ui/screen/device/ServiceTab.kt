@@ -6,22 +6,27 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.OpenWith
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.SquareFoot
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -30,6 +35,7 @@ import net.agolyakov.agoslider.R
 import net.agolyakov.agoslider.data.model.position.CalibrationPhase
 import net.agolyakov.agoslider.data.model.position.CalibrationState
 import net.agolyakov.agoslider.data.model.position.PositioningSettings
+import net.agolyakov.agoslider.data.model.power.PowerSample
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
 import kotlin.math.roundToInt
 
@@ -46,6 +52,7 @@ fun ServiceTabContent(
     limitStatus: Triple<Boolean, Boolean, Boolean>,
     powerInfo: Triple<Float, Float, Float>,
     powerInfoString: String,
+    powerHistory: List<PowerSample>,
     firmwareVersion: String,
     calibration: CalibrationState,
     positioning: PositioningSettings,
@@ -73,8 +80,22 @@ fun ServiceTabContent(
                 MoveAxisSlider("X", moveX, MOVE_X_RANGE, MOVE_STEP, axisUnit.first, onMoveXChange)
                 MoveAxisSlider("C", moveC, MOVE_C_RANGE, MOVE_STEP, axisUnit.second, onMoveCChange)
                 MoveAxisSlider("B", moveB, MOVE_B_RANGE, MOVE_STEP, axisUnit.third, onMoveBChange)
-                Button(onClick = onSendMoveCommand) {
-                    Text(stringResource(R.string.service_move_button))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onSendMoveCommand) {
+                        Text(stringResource(R.string.service_move_button))
+                    }
+                    // Outlined, so returning the sliders to "stay put" never competes for
+                    // attention with the button that actually moves the hardware
+                    OutlinedButton(
+                        onClick = {
+                            onMoveXChange(0)
+                            onMoveCChange(0)
+                            onMoveBChange(0)
+                        },
+                        enabled = moveX != 0 || moveC != 0 || moveB != 0
+                    ) {
+                        Text(stringResource(R.string.service_move_reset))
+                    }
                 }
             }
         }
@@ -88,28 +109,31 @@ fun ServiceTabContent(
             onCancelCalibration = onCancelCalibration
         )
 
-        HorizontalDivider()
+        // Read-only hardware status, one card per piece of hardware
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CardTitle(Icons.Default.Sensors, stringResource(R.string.service_limits_title))
+                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    LimitIndicator("X", limitStatus.first)
+                    LimitIndicator("C", limitStatus.second)
+                    LimitIndicator("B", limitStatus.third)
+                }
+            }
+        }
 
-        // Read-only hardware status
-        Text(
-            stringResource(
-                R.string.service_limit_switches,
-                limitStatus.first.toString(),
-                limitStatus.second.toString(),
-                limitStatus.third.toString()
-            )
-        )
-        Text(
-            stringResource(
-                R.string.service_power,
-                powerInfo.first.toString(),
-                powerInfo.second.toString(),
-                powerInfo.third.toString()
-            )
-        )
-        Text(stringResource(R.string.service_power_string, powerInfoString))
-
-        HorizontalDivider()
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CardTitle(Icons.Default.BatteryFull, stringResource(R.string.service_battery_title))
+                Text(powerInfoString)
+                PowerChart(history = powerHistory)
+            }
+        }
 
         // Firmware update
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -209,6 +233,30 @@ private fun calibrationPhaseLabel(phase: CalibrationPhase): String = stringResou
     }
 )
 
+/**
+ * Endstop state as an axis letter next to a dot. Colour alone would not carry it — red/green
+ * is the classic pair colour-blind readers cannot separate — so the dot is also filled when
+ * the switch is pressed and a hollow ring when it is not.
+ */
+@Composable
+private fun LimitIndicator(axis: String, triggered: Boolean) {
+    val color = if (triggered) {
+        MaterialTheme.colorScheme.tertiary
+    } else {
+        MaterialTheme.colorScheme.error
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(axis, style = MaterialTheme.typography.bodyMedium)
+        Canvas(modifier = Modifier.size(14.dp)) {
+            if (triggered) {
+                drawCircle(color)
+            } else {
+                drawCircle(color, style = Stroke(width = 2.dp.toPx()))
+            }
+        }
+    }
+}
+
 @Composable
 private fun MoveAxisSlider(
     axis: String,
@@ -254,6 +302,7 @@ private fun ServiceTabPreview(darkTheme: Boolean) {
             limitStatus = Triple(false, true, false),
             powerInfo = Triple(21.48f, 0.082f, 1.76f),
             powerInfoString = "21.48V 0.082A 1.76W",
+            powerHistory = emptyList(),
             firmwareVersion = "v0.1.0",
             calibration = CalibrationState(),
             positioning = PositioningSettings.DEFAULT,

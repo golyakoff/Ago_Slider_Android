@@ -46,6 +46,7 @@ import net.agolyakov.agoslider.data.model.ble.HomeStatus
 import net.agolyakov.agoslider.data.model.position.AxisCoordinates
 import net.agolyakov.agoslider.data.model.position.CalibrationState
 import net.agolyakov.agoslider.data.model.position.PositioningSettings
+import net.agolyakov.agoslider.data.model.power.PowerSample
 import net.agolyakov.agoslider.navigation.Screen
 import net.agolyakov.agoslider.ui.theme.AgoSliderTheme
 
@@ -94,6 +95,7 @@ fun DeviceScreen(
     val batteryLevel by viewModel.batteryLevel.collectAsState()
     val firmwareVersion by viewModel.firmwareVersion.collectAsState()
     val powerInfoString by viewModel.powerInfoString.collectAsState()
+    val powerHistory by viewModel.powerHistory.collectAsState()
 
     val moveX by viewModel.moveX.collectAsState()
     val moveC by viewModel.moveC.collectAsState()
@@ -157,6 +159,7 @@ fun DeviceScreen(
         homeStatus = homeStatus,
         powerInfo = powerInfo,
         powerInfoString = powerInfoString,
+        powerHistory = powerHistory,
         moveX = moveX,
         moveC = moveC,
         moveB = moveB,
@@ -209,6 +212,7 @@ fun DeviceScreenContent(
     homeStatus: HomeStatus,
     powerInfo: Triple<Float, Float, Float>,
     powerInfoString: String,
+    powerHistory: List<PowerSample>,
     moveX: Int,
     moveC: Int,
     moveB: Int,
@@ -283,6 +287,7 @@ fun DeviceScreenContent(
                     limitStatus = limitStatus,
                     powerInfo = powerInfo,
                     powerInfoString = powerInfoString,
+                    powerHistory = powerHistory,
                     firmwareVersion = firmwareVersion,
                     calibration = calibration,
                     positioning = positioning,
@@ -442,6 +447,7 @@ fun DeviceScreenPreview(darkTheme: Boolean, initialTab: DeviceTab = DeviceTab.Mo
             homeStatus = HomeStatus(Triple(false, false, false), Triple(false, false, false)),
             powerInfo = Triple(21.48f, 0.082f, 1.76f),
             powerInfoString = "21.48V 0.082A 1.76W",
+            powerHistory = emptyList(),
             moveX = 0,
             moveC = 0,
             moveB = 0,

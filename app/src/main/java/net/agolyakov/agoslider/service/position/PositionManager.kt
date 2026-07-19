@@ -86,17 +86,15 @@ class PositionManager @Inject constructor(
             }
         }
 
-        // Strict validity policy: losing the link or the holding torque means the position can
-        // no longer be proven — require a fresh homing
+        // Losing the link stops any calibration but does not cost the coordinate: the device
+        // holds the axes, remembers that they are homed, and says so in POSITION, so a
+        // reconnect restores validity instead of demanding a fresh homing run.
         scope.launch {
             bluetoothService.connectionState.collect { state ->
                 val lost = state is ConnectionState.Disconnected ||
                         state is ConnectionState.Disconnecting ||
                         state is ConnectionState.Error
-                if (lost) {
-                    calibrationJob?.cancel()
-                    invalidateAll()
-                }
+                if (lost) calibrationJob?.cancel()
             }
         }
         scope.launch {
@@ -112,28 +110,6 @@ class PositionManager @Inject constructor(
         scope.launch { bluetoothService.microsteps.drop(1).collect { invalidateAll() } }
         scope.launch { bluetoothService.unitsPerStep.drop(1).collect { invalidateAll() } }
         scope.launch { bluetoothService.invertDir.drop(1).collect { invalidateAll() } }
-
-        // An unexpected limit switch hit: without firmware position reporting it means the
-        // commanded count may have diverged (a force stop cuts a move short), so the axis is
-        // dropped. With firmware >= 0.1.4 the device itself is the counter and survives
-        // force stops, so the position stays trusted. Watches the monotonic hit counters,
-        // not the conflatable state flow, so brief hits are not missed.
-        scope.launch {
-            var last = bluetoothService.limitHitCounts.value
-            bluetoothService.limitHitCounts.collect { counts ->
-                for (axis in 0..2) {
-                    if (counts.at(axis) > last.at(axis) && axis !in protectedAxes) {
-                        if (bluetoothService.devicePosition.value != null) {
-                            Log.i(tag, "Limit hit on axis $axis — position kept, firmware tracks it")
-                        } else {
-                            Log.w(tag, "Unexpected limit hit on axis $axis, position invalidated")
-                            invalidateAxis(axis)
-                        }
-                    }
-                }
-                last = counts
-            }
-        }
 
         // Once an axis reports homed, drive it off the endstop by the home offset — that
         // position becomes coordinate 0
@@ -158,7 +134,18 @@ class PositionManager @Inject constructor(
                 if (fw == null) return@collect
                 for (axis in 0..2) {
                     stepCounts[axis] =
-                        fw.at(axis) - unitsToSteps(_settings.value.homeOffset.at(axis), axis)
+                        fw.steps.at(axis) - unitsToSteps(_settings.value.homeOffset.at(axis), axis)
+                }
+                // The device says outright whether an axis is still anchored to its endstop,
+                // and that answer outlives the BLE link: a reconnect restores the coordinate
+                // instead of demanding a fresh homing run, while a device that rebooted comes
+                // back with the flags clear, so its zero can never pass for a homed one.
+                for (axis in 0..2) {
+                    if (!fw.homeValid.at(axis)) {
+                        if (validAxes[axis]) invalidateAxis(axis)
+                    } else if (!validAxes[axis] && !pendingHomeOffset.contains(axis)) {
+                        validAxes[axis] = true
+                    }
                 }
                 publish()
             }
@@ -266,8 +253,7 @@ class PositionManager @Inject constructor(
         Log.i(tag, "Calibration axis=$axis start (hardware): offset=$offsetUnits settings=${_settings.value}")
         val ready = bluetoothService.connectionState.value is ConnectionState.Ready &&
                 bluetoothService.motorsEnabled.value &&
-                unitsToSteps(coarse, axis) > 0 && // steps-to-units geometry must be known
-                bluetoothService.devicePosition.value != null
+                unitsToSteps(coarse, axis) > 0 // steps-to-units geometry must be known
         if (!ready) {
             Log.w(tag, "Calibration axis=$axis not ready to start")
             _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
@@ -282,7 +268,7 @@ class PositionManager @Inject constructor(
         val parkSteps = unitsToSteps(offsetUnits, axis)
         val retreatSteps = unitsToSteps(RETREAT_COARSE_QUANTA * coarse, axis)
         if (!bluetoothService.sendCalibrateCommand(axis, parkSteps, retreatSteps)) {
-            Log.w(tag, "Calibration axis=$axis: firmware has no CALIBRATE support (< 0.1.4)")
+            Log.w(tag, "Calibration axis=$axis: the device refused the CALIBRATE write")
             _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
             return
         }
@@ -393,12 +379,9 @@ class PositionManager @Inject constructor(
         return (seconds * 1000).toLong() + MOVE_SETTLE_MS
     }
 
-    /**
-     * The firmware programs the step period as 10^7/speed µs (app_main.cpp, setSpeedInUs),
-     * so an axis actually runs at a tenth of its configured steps/s.
-     */
+    /** The device runs at the speed it is given, so the setting needs no correction. */
     private fun realSpeedStepsPerSec(axis: Int): Float =
-        bluetoothService.axisSpeed.value.at(axis).coerceAtLeast(10) / 10f
+        bluetoothService.axisSpeed.value.at(axis).coerceAtLeast(10).toFloat()
 
     /** The device moves in STEP pulses (microsteps) while `units per step` is per full step. */
     private fun unitsToSteps(units: Float, axis: Int): Int {

@@ -7,7 +7,9 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 class PowerInfoReadCharacteristicHandler(
-    private val powerInfoFlow: MutableStateFlow<Triple<Float, Float, Float>>
+    private val powerInfoFlow: MutableStateFlow<Triple<Float, Float, Float>>,
+    /** Called for every reading, so the session history keeps the values the flow conflates. */
+    private val onSample: (Float, Float, Float) -> Unit = { _, _, _ -> }
 ) : ReadCharacteristicHandler {
 
     override fun onReadCharacteristicCallback(device: BluetoothDevice, data: Data) {
@@ -20,5 +22,6 @@ class PowerInfoReadCharacteristicHandler(
         val power = buffer.float
 
         powerInfoFlow.value = Triple(voltage, current, power)
+        onSample(voltage, current, power)
     }
 }

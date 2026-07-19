@@ -70,12 +70,12 @@
     <string name="settings_run_current">Рабочий ток (мА)</string>
     <string name="settings_hold_current">Ток удержания (мА)</string>
     <string name="settings_microsteps">Микрошаги</string>
-    <string name="settings_invert_dir">Инверсия направления</string>
-    <string name="settings_axis_unit">Единицы измерения оси</string>
+    <string name="settings_invert_dir">Инвертировать направление</string>
+    <string name="settings_axis_unit">Единицы измерения</string>
     <string name="settings_units_per_step">Единиц на шаг</string>
-    <string name="settings_axis_accel">Ускорение оси (шагов/с²)</string>
-    <string name="settings_axis_speed">Скорость оси по умолчанию (шагов/с)</string>
-    <string name="settings_virtual_limit">Виртуальный лимит</string>
+    <string name="settings_axis_accel">Ускорение по умолчанию (шагов/с²)</string>
+    <string name="settings_axis_speed">Скорость по умолчанию (шагов/с)</string>
+    <string name="settings_virtual_limit">Концевик ограничивает ось</string>
     <string name="settings_positioning">Виртуальные координаты</string>
     <string name="positioning_offset">Смещение</string>
     <string name="positioning_min">Мин</string>
@@ -114,4 +114,19 @@
     <!-- Permissions -->
     <string name="perm_bluetooth_is_off">Приложение требует включения Bluetooth</string>
     <string name="perm_not_enough_permissions">Приложение не получило необходимых разрешений</string>
+    <string name="service_move_reset">Сбросить</string>
+    <string name="service_limits_title">Концевики</string>
+    <string name="service_battery_title">Батарея</string>
+    <string name="settings_group_electrical">Режимы</string>
+    <string name="settings_group_motion">Движение</string>
+    <string name="settings_group_constants">Константы</string>
+    <string name="service_power_voltage">Напряжение</string>
+    <string name="service_power_current">Ток</string>
+    <string name="service_power_watts">Мощность</string>
+    <string name="unit_volt">В</string>
+    <string name="unit_ampere">А</string>
+    <string name="unit_watt">Вт</string>
+    <string name="service_power_chart_empty">Собираем показания…</string>
+    <string name="service_power_chart_span">Последние %1$d мин сессии</string>
+    <string name="service_power_chart_span_sec">Последние %1$d с сессии</string>
 </resources>
