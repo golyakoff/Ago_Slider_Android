@@ -1,3 +1,19 @@
+# Release 0.1.7
+
+- New "Focus on subject" mode on the Motion tab: the slider travels along X while turning C
+  to keep a subject centred, with an optional slow vertical tilt. Aim the camera at the
+  subject from three points along the rail and the app works out where the subject stands
+  and how far away it is — no need to judge the distance by eye. The run itself happens on
+  the slider, so the phone can be disconnected, closed or restarted while it films, and
+  reconnecting shows how far it got.
+- Settings are grouped into Modes, Motion and Constants, and the labels drop the "axis"
+  qualifier the per-axis rows already imply.
+- The Service tab gained a Reset beside Move, shows endstops as indicators instead of raw
+  text, and plots the session's voltage, current and power over time.
+- Coordinates survive a reconnect: the slider is asked whether an axis is still anchored to
+  its endstop rather than the app assuming the answer.
+- Requires firmware 0.1.5 or newer.
+
 # Release 0.1.6
 
 - Endstop calibration is now run by the device (firmware 0.1.4 or newer): the app sends
