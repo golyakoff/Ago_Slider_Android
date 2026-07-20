@@ -115,7 +115,13 @@ fun AxisStateDot(axis: String, active: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(axis, style = MaterialTheme.typography.bodyMedium)
         Canvas(modifier = Modifier.size(14.dp)) {
-            if (active) drawCircle(color) else drawCircle(color, style = Stroke(width = 2.dp.toPx()))
+            val stroke = 2.dp.toPx()
+            // Both states carry the same ring, so they read as the same size: a stroke sits
+            // astride the radius and extends past it, which made a plain filled dot look
+            // smaller than the hollow one beside it. Fill is still what distinguishes them,
+            // so the pair does not rely on colour alone.
+            if (active) drawCircle(color, radius = size.minDimension / 2f - stroke / 2f)
+            drawCircle(color, style = Stroke(width = stroke))
         }
     }
 }

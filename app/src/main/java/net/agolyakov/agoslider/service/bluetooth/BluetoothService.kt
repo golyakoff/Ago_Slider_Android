@@ -162,6 +162,10 @@ class BluetoothService @Inject constructor(
     private val _invertDir = MutableStateFlow(Triple(false, false, false))
     val invertDir: StateFlow<Triple<Boolean, Boolean, Boolean>> = _invertDir
 
+    // Axes that turn full circles past one index magnet rather than between two endstops
+    private val _continuous = MutableStateFlow(Triple(false, false, false))
+    val continuous: StateFlow<Triple<Boolean, Boolean, Boolean>> = _continuous
+
     // ========================== Handlers ==========================
     private val versionHandler = VersionReadCharacteristicHandler(_firmwareVersion, _versionReadEvent)
 
@@ -185,6 +189,7 @@ class BluetoothService @Inject constructor(
     private val virtualLimitHandler = VirtualLimitReadCharacteristicHandler(_virtualLimit)
     private val stealthChopHandler = StealthChopReadCharacteristicHandler(_stealthChop)
     private val invertDirHandler = InvertDirReadCharacteristicHandler(_invertDir)
+    private val continuousHandler = ContinuousReadCharacteristicHandler(_continuous)
 
     // ========================== BLE Manager ==========================
     private val bleManager = AgoSliderManager(
@@ -199,6 +204,7 @@ class BluetoothService @Inject constructor(
         virtualLimitHandler,
         stealthChopHandler,
         invertDirHandler,
+        continuousHandler,
         batteryLevelHandler,
         powerInfoHandler,
         powerInfoStringHandler,
@@ -316,6 +322,7 @@ class BluetoothService @Inject constructor(
         bleManager.readVirtualLimitCharacteristic()
         bleManager.readStealthChopCharacteristic()
         bleManager.readInvertDirCharacteristic()
+        bleManager.readContinuousCharacteristic()
         bleManager.readVersionCharacteristic()
         // MOT_EN, LIMIT, BATT and power are notified only when they change, which may not
         // happen for a long time after connecting, so read their current state once.
@@ -412,6 +419,11 @@ class BluetoothService @Inject constructor(
     fun setInvertDir(xInvert: Boolean, cInvert: Boolean, bInvert: Boolean) {
         bleManager.writeInvertDirCharacteristic(xInvert, cInvert, bInvert)
         bleManager.readInvertDirCharacteristic()
+    }
+
+    fun setContinuous(x: Boolean, c: Boolean, b: Boolean) {
+        bleManager.writeContinuousCharacteristic(x, c, b)
+        bleManager.readContinuousCharacteristic()
     }
 
     // ========================== OTA Methods ==========================

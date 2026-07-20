@@ -37,6 +37,7 @@ class DeviceViewModel @Inject constructor(
     val virtualLimit = bluetoothService.virtualLimit
     val stealthChop = bluetoothService.stealthChop
     val invertDir = bluetoothService.invertDir
+    val continuous = bluetoothService.continuous
 
     // Status values
     val limitStatus = bluetoothService.limitStatus
@@ -143,6 +144,8 @@ class DeviceViewModel @Inject constructor(
     fun setStealthChop(xEnable: Boolean, cEnable: Boolean, bEnable: Boolean) {
         bluetoothService.setStealthChop(xEnable, cEnable, bEnable)
     }
+
+    fun setContinuous(x: Boolean, c: Boolean, b: Boolean) = bluetoothService.setContinuous(x, c, b)
 
     fun setInvertDir(xInvert: Boolean, cInvert: Boolean, bInvert: Boolean) {
         bluetoothService.setInvertDir(xInvert, cInvert, bInvert)

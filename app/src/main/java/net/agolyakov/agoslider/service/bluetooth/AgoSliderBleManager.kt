@@ -25,6 +25,7 @@ class AgoSliderManager(
     private val virtualLimitHandler: VirtualLimitReadCharacteristicHandler,
     private val stealthChopHandler: StealthChopReadCharacteristicHandler,
     private val invertDirHandler: InvertDirReadCharacteristicHandler,
+    private val continuousHandler: ContinuousReadCharacteristicHandler,
     private val batteryLevelHandler: BatteryLevelReadCharacteristicHandler,
     private val powerInfoHandler: PowerInfoReadCharacteristicHandler,
     private val powerInfoStringHandler: PowerInfoStringReadCharacteristicHandler,
@@ -65,6 +66,7 @@ class AgoSliderManager(
     private var virtualLimitCharacteristic: BluetoothGattCharacteristic? = null
     private var stealthChopCharacteristic: BluetoothGattCharacteristic? = null
     private var invertDirCharacteristic: BluetoothGattCharacteristic? = null
+    private var continuousCharacteristic: BluetoothGattCharacteristic? = null
 
     private var versionCharacteristic: BluetoothGattCharacteristic? = null
     private var otaControlCharacteristic: BluetoothGattCharacteristic? = null
@@ -97,6 +99,7 @@ class AgoSliderManager(
         virtualLimitCharacteristic = service.getCharacteristic(VIRTUAL_LIMIT_CHAR_UUID)
         stealthChopCharacteristic = service.getCharacteristic(STEALTHCHOP_CHAR_UUID)
         invertDirCharacteristic = service.getCharacteristic(INVERT_DIR_CHAR_UUID)
+        continuousCharacteristic = service.getCharacteristic(CONTINUOUS_CHAR_UUID)
 
         versionCharacteristic = service.getCharacteristic(VERSION_CHAR_UUID)
         otaControlCharacteristic = service.getCharacteristic(OTA_CONTROL_CHAR_UUID)
@@ -146,6 +149,7 @@ class AgoSliderManager(
         virtualLimitCharacteristic = null
         stealthChopCharacteristic = null
         invertDirCharacteristic = null
+        continuousCharacteristic = null
         versionCharacteristic = null
         otaControlCharacteristic = null
         otaDataCharacteristic = null
@@ -323,6 +327,13 @@ class AgoSliderManager(
             .enqueue()
     }
 
+    fun readContinuousCharacteristic() {
+        val characteristic = continuousCharacteristic ?: return   // absent on older firmware
+        readCharacteristic(characteristic)
+            .with { device, data -> continuousHandler.onReadCharacteristicCallback(device, data) }
+            .enqueue()
+    }
+
     fun readVersionCharacteristic() {
         readCharacteristic(versionCharacteristic)
             .with { device, data -> versionHandler.onReadCharacteristicCallback(device, data) }
@@ -448,6 +459,12 @@ class AgoSliderManager(
         writeCharacteristic(invertDirCharacteristic, byteArrayOf(flags.toByte()), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
     }
 
+    fun writeContinuousCharacteristic(x: Boolean, c: Boolean, b: Boolean) {
+        val characteristic = continuousCharacteristic ?: return
+        val flags = (if (x) 0x01 else 0) or (if (c) 0x02 else 0) or (if (b) 0x04 else 0)
+        writeCharacteristic(characteristic, byteArrayOf(flags.toByte()), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT).enqueue()
+    }
+
     /**
      * Negotiated ATT MTU (suspends until the MTU exchange completes after connect).
      * OTA chunks must not exceed MTU-3 or Android falls back to slow long writes.
@@ -496,6 +513,7 @@ class AgoSliderManager(
         val VIRTUAL_LIMIT_CHAR_UUID: UUID = UUID.fromString("0000F037-0000-1000-8000-00805F9B34FB")
         val STEALTHCHOP_CHAR_UUID: UUID   = UUID.fromString("0000F038-0000-1000-8000-00805F9B34FB")
         val INVERT_DIR_CHAR_UUID: UUID    = UUID.fromString("0000F039-0000-1000-8000-00805F9B34FB")
+        val CONTINUOUS_CHAR_UUID: UUID    = UUID.fromString("0000F03A-0000-1000-8000-00805F9B34FB")
 
         val VERSION_CHAR_UUID: UUID       = UUID.fromString("0000F090-0000-1000-8000-00805F9B34FB")
         val OTA_CONTROL_CHAR_UUID: UUID   = UUID.fromString("0000F091-0000-1000-8000-00805F9B34FB")

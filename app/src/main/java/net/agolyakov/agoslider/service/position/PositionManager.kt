@@ -310,8 +310,23 @@ class PositionManager @Inject constructor(
         // rail's zero sits just clear of the near endstop, so its range runs from minus the
         // park offset up to whatever is left of the span.
         val rotary = bluetoothService.axisUnit.value.at(axis)
-        val measuredMin = if (rotary) -spanUnits / 2f else -offsetUnits
-        val measuredMax = if (rotary) spanUnits / 2f else spanUnits - offsetUnits
+        val continuous = rotary && bluetoothService.continuous.value.at(axis)
+        val measuredMin: Float
+        val measuredMax: Float
+        if (continuous) {
+            // One index magnet met from both sides. It triggers a little before the sensor is
+            // over it, so the two triggers sit either side of the magnet and the measured span
+            // falls short of a full turn by the width of that zone. The axis itself has no
+            // limits — it turns freely — so the range is simply half a circle each way.
+            measuredMin = -FULL_TURN_DEG / 2f
+            measuredMax = FULL_TURN_DEG / 2f
+        } else if (rotary) {
+            measuredMin = -spanUnits / 2f
+            measuredMax = spanUnits / 2f
+        } else {
+            measuredMin = -offsetUnits
+            measuredMax = spanUnits - offsetUnits
+        }
         if (spanUnits <= coarse) {
             Log.w(tag, "Calibration axis=$axis: span=$spanUnits is not plausible")
             _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
@@ -323,14 +338,39 @@ class PositionManager @Inject constructor(
         publish()
 
         val settings = _settings.value
+        // A rotary axis's zero has to BE the centre, or symmetric limits would merely be
+        // asserted rather than true. The span is only known once the run finishes, so the
+        // offset that centres the axis can only be written now: half the measured span, which
+        // is also the new max, so min + max comes to zero by construction. Future homing then
+        // parks the axis in the middle on its own.
+        // A continuous axis is zeroed on the magnet itself: the calibration stopped at the
+        // first trigger, and the magnet's centre lies half the missing arc BEFORE it, so the
+        // offset is that small negative correction rather than anything near half a turn.
+        // Parking at half the span — right for an axis with two endstops — would land exactly
+        // 180 degrees from the magnet, which is what it used to do.
+        val centredOffset = when {
+            continuous -> -(FULL_TURN_DEG - spanUnits) / 2f
+            rotary -> measuredMax
+            else -> offsetUnits
+        }
         saveSettings(
             settings.copy(
+                homeOffset = settings.homeOffset.with(axis, centredOffset),
                 limitMin = settings.limitMin.with(axis, measuredMin),
                 limitMax = settings.limitMax.with(axis, measuredMax)
             )
         )
+
+        // Changing the offset re-bases the coordinate, so the axis now reads where it really
+        // stands relative to the new centre — the calibration parked it at the OLD offset.
+        // Drive it to the new zero so the axis ends this run in the middle, as the limits say.
+        if ((rotary || continuous) && abs(centredOffset - offsetUnits) > 0.01f) {
+            delay(FW_POSITION_SYNC_MS)
+            moveAxisTo(axis, 0f)
+        }
         _calibration.value = CalibrationState(axis, CalibrationPhase.DONE)
         Log.i(tag, "Axis $axis calibrated (hardware): span=$spanUnits rotary=$rotary " +
+            "continuous=$continuous offset=$centredOffset " +
             "min=$measuredMin max=$measuredMax, parked at 0")
     }
 
@@ -456,6 +496,9 @@ class PositionManager @Inject constructor(
     }
 
     private companion object {
+        /** One revolution of an axis measured in degrees. */
+        const val FULL_TURN_DEG = 360f
+
         // Matches the firmware's HOMING_TIMEOUT_MS (90 s) plus margin
         const val HOMING_TIMEOUT_MS = 120_000L
         const val MOVE_SETTLE_MS = 300L

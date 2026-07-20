@@ -186,4 +186,5 @@
     <string name="scenario_jog_x_value">Move X (mm) — now %1$s</string>
     <string name="scenario_jog_c_value">Move C (deg) — now %1$s</string>
     <string name="scenario_jog_b_value">Move B (deg) — now %1$s</string>
+    <string name="settings_continuous">Continuous rotation (index magnet)</string>
 </resources>

@@ -92,6 +92,7 @@ fun DeviceScreen(
     val virtualLimit by viewModel.virtualLimit.collectAsState()
     val stealthChop by viewModel.stealthChop.collectAsState()
     val invertDir by viewModel.invertDir.collectAsState()
+    val continuous by viewModel.continuous.collectAsState()
     val limitStatus by viewModel.limitStatus.collectAsState()
     val homeStatus by viewModel.homeStatus.collectAsState()
     val powerInfo by viewModel.powerInfo.collectAsState()
@@ -160,6 +161,7 @@ fun DeviceScreen(
         virtualLimit = virtualLimit,
         stealthChop = stealthChop,
         invertDir = invertDir,
+        continuous = continuous,
         limitStatus = limitStatus,
         homeStatus = homeStatus,
         powerInfo = powerInfo,
@@ -199,6 +201,7 @@ fun DeviceScreen(
         onAxisSpeedChange = viewModel::setAxisSpeed,
         onAxisAccelChange = viewModel::setAxisAccel,
         onVirtualLimitChange = viewModel::setVirtualLimit,
+        onContinuousChange = viewModel::setContinuous,
         onStealthChopChange = viewModel::setStealthChop,
         onInvertDirChange = viewModel::setInvertDir,
         onCheckFirmwareUpdates = { navController.navigate(Screen.FirmwareUpdate.route) }
@@ -224,6 +227,7 @@ fun DeviceScreenContent(
     virtualLimit: Triple<Boolean, Boolean, Boolean>,
     stealthChop: Triple<Boolean, Boolean, Boolean>,
     invertDir: Triple<Boolean, Boolean, Boolean>,
+    continuous: Triple<Boolean, Boolean, Boolean>,
     limitStatus: Triple<Boolean, Boolean, Boolean>,
     homeStatus: HomeStatus,
     powerInfo: Triple<Float, Float, Float>,
@@ -263,6 +267,7 @@ fun DeviceScreenContent(
     onAxisSpeedChange: (Int, Int, Int) -> Unit,
     onAxisAccelChange: (Int, Int, Int) -> Unit,
     onVirtualLimitChange: (Boolean, Boolean, Boolean) -> Unit,
+    onContinuousChange: (Boolean, Boolean, Boolean) -> Unit,
     onStealthChopChange: (Boolean, Boolean, Boolean) -> Unit,
     onInvertDirChange: (Boolean, Boolean, Boolean) -> Unit,
     onCheckFirmwareUpdates: () -> Unit = {},
@@ -363,6 +368,7 @@ fun DeviceScreenContent(
                     virtualLimit = virtualLimit,
                     stealthChop = stealthChop,
                     invertDir = invertDir,
+                    continuous = continuous,
                     onMicrostepsChange = onMicrostepsChange,
                     onRunCurrentChange = onRunCurrentChange,
                     onHoldCurrentChange = onHoldCurrentChange,
@@ -371,6 +377,7 @@ fun DeviceScreenContent(
                     onAxisSpeedChange = onAxisSpeedChange,
                     onAxisAccelChange = onAxisAccelChange,
                     onVirtualLimitChange = onVirtualLimitChange,
+                    onContinuousChange = onContinuousChange,
                     onStealthChopChange = onStealthChopChange,
                     onInvertDirChange = onInvertDirChange,
                     positioning = positioning,
@@ -494,6 +501,7 @@ fun DeviceScreenPreview(darkTheme: Boolean, initialTab: DeviceTab = DeviceTab.Mo
             virtualLimit = Triple(true, false, true),
             stealthChop = Triple(true, true, true),
             invertDir = Triple(false, false, false),
+            continuous = Triple(false, true, false),
             limitStatus = Triple(false, false, false),
             homeStatus = HomeStatus(Triple(false, false, false), Triple(false, false, false)),
             powerInfo = Triple(21.48f, 0.082f, 1.76f),
@@ -533,6 +541,7 @@ fun DeviceScreenPreview(darkTheme: Boolean, initialTab: DeviceTab = DeviceTab.Mo
             onAxisSpeedChange = { _, _, _ -> },
             onAxisAccelChange = { _, _, _ -> },
             onVirtualLimitChange = { _, _, _ -> },
+            onContinuousChange = { _, _, _ -> },
             onStealthChopChange = { _, _, _ -> },
             onInvertDirChange = { _, _, _ -> },
             initialTab = initialTab

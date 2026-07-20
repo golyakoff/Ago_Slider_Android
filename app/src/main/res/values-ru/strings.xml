@@ -183,4 +183,5 @@
     <string name="scenario_jog_x_value">Переместить X (мм) — сейчас %1$s</string>
     <string name="scenario_jog_c_value">Переместить C (град) — сейчас %1$s</string>
     <string name="scenario_jog_b_value">Переместить B (град) — сейчас %1$s</string>
+    <string name="settings_continuous">Непрерывное вращение (магнит-индекс)</string>
 </resources>

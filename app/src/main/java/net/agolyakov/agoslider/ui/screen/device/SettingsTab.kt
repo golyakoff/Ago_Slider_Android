@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.LinearScale
 import androidx.compose.material.icons.filled.MyLocation
@@ -46,6 +47,7 @@ fun SettingsTabContent(
     axisSpeed: Triple<Int, Int, Int>,
     axisAccel: Triple<Int, Int, Int>,
     virtualLimit: Triple<Boolean, Boolean, Boolean>,
+    continuous: Triple<Boolean, Boolean, Boolean>,
     stealthChop: Triple<Boolean, Boolean, Boolean>,
     invertDir: Triple<Boolean, Boolean, Boolean>,
     positioning: PositioningSettings,
@@ -57,6 +59,7 @@ fun SettingsTabContent(
     onAxisSpeedChange: (Int, Int, Int) -> Unit,
     onAxisAccelChange: (Int, Int, Int) -> Unit,
     onVirtualLimitChange: (Boolean, Boolean, Boolean) -> Unit,
+    onContinuousChange: (Boolean, Boolean, Boolean) -> Unit,
     onStealthChopChange: (Boolean, Boolean, Boolean) -> Unit,
     onInvertDirChange: (Boolean, Boolean, Boolean) -> Unit,
     onSavePositioning: (PositioningSettings) -> Unit
@@ -71,6 +74,7 @@ fun SettingsTabContent(
     var axisAccelEdit by remember(axisAccel) { mutableStateOf(axisAccel) }
     var axisSpeedEdit by remember(axisSpeed) { mutableStateOf(axisSpeed) }
     var virtualLimitEdit by remember(virtualLimit) { mutableStateOf(virtualLimit) }
+    var continuousEdit by remember(continuous) { mutableStateOf(continuous) }
     var stealthChopEdit by remember(stealthChop) { mutableStateOf(stealthChop) }
     // Null while a field is half-typed and cannot be parsed
     var unitsPerStepEdit by remember(unitsPerStep) {
@@ -216,6 +220,16 @@ fun SettingsTabContent(
                 onValueChange = { virtualLimitEdit = it },
                 onSave = { onVirtualLimitChange(virtualLimitEdit.first, virtualLimitEdit.second, virtualLimitEdit.third) }
             )
+            // Tells calibration that the axis has no ends: it turns full circles past one
+            // index magnet, so its zero is that magnet and its range is a whole revolution
+            BoolTriple(
+                icon = Icons.Default.Autorenew,
+                title = stringResource(R.string.settings_continuous),
+                values = continuousEdit,
+                dirty = continuousEdit != continuous,
+                onValueChange = { continuousEdit = it },
+                onSave = { onContinuousChange(continuousEdit.first, continuousEdit.second, continuousEdit.third) }
+            )
         }
     }
 }
@@ -251,6 +265,7 @@ private fun SettingsTabPreview(darkTheme: Boolean) {
             axisSpeed = Triple(1000, 1000, 1000),
             axisAccel = Triple(1000, 1000, 1000),
             virtualLimit = Triple(true, false, true),
+            continuous = Triple(false, true, false),
             stealthChop = Triple(true, true, true),
             invertDir = Triple(false, false, false),
             positioning = PositioningSettings.DEFAULT,
@@ -262,6 +277,7 @@ private fun SettingsTabPreview(darkTheme: Boolean) {
             onAxisSpeedChange = { _, _, _ -> },
             onAxisAccelChange = { _, _, _ -> },
             onVirtualLimitChange = { _, _, _ -> },
+            onContinuousChange = { _, _, _ -> },
             onStealthChopChange = { _, _, _ -> },
             onInvertDirChange = { _, _, _ -> },
             onSavePositioning = {}
