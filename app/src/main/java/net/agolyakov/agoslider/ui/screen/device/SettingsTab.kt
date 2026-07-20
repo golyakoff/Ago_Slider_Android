@@ -176,6 +176,24 @@ fun SettingsTabContent(
                 onValueChange = { invertDirEdit = it },
                 onSave = { onInvertDirChange(invertDirEdit.first, invertDirEdit.second, invertDirEdit.third) }
             )
+            BoolTriple(
+                icon = Icons.Default.PanTool,
+                title = stringResource(R.string.settings_virtual_limit),
+                values = virtualLimitEdit,
+                dirty = virtualLimitEdit != virtualLimit,
+                onValueChange = { virtualLimitEdit = it },
+                onSave = { onVirtualLimitChange(virtualLimitEdit.first, virtualLimitEdit.second, virtualLimitEdit.third) }
+            )
+            // Tells calibration that the axis has no ends: it turns full circles past one
+            // index magnet, so its zero is that magnet and its range is a whole revolution
+            BoolTriple(
+                icon = Icons.Default.Autorenew,
+                title = stringResource(R.string.settings_continuous),
+                values = continuousEdit,
+                dirty = continuousEdit != continuous,
+                onValueChange = { continuousEdit = it },
+                onSave = { onContinuousChange(continuousEdit.first, continuousEdit.second, continuousEdit.third) }
+            )
         }
 
         SettingsGroup(
@@ -211,24 +229,6 @@ fun SettingsTabContent(
                 storedValues = positioning,
                 axisIsDegrees = axisUnitEdit,
                 onSave = onSavePositioning
-            )
-            BoolTriple(
-                icon = Icons.Default.PanTool,
-                title = stringResource(R.string.settings_virtual_limit),
-                values = virtualLimitEdit,
-                dirty = virtualLimitEdit != virtualLimit,
-                onValueChange = { virtualLimitEdit = it },
-                onSave = { onVirtualLimitChange(virtualLimitEdit.first, virtualLimitEdit.second, virtualLimitEdit.third) }
-            )
-            // Tells calibration that the axis has no ends: it turns full circles past one
-            // index magnet, so its zero is that magnet and its range is a whole revolution
-            BoolTriple(
-                icon = Icons.Default.Autorenew,
-                title = stringResource(R.string.settings_continuous),
-                values = continuousEdit,
-                dirty = continuousEdit != continuous,
-                onValueChange = { continuousEdit = it },
-                onSave = { onContinuousChange(continuousEdit.first, continuousEdit.second, continuousEdit.third) }
             )
         }
     }
