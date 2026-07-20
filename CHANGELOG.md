@@ -1,3 +1,21 @@
+# Release 0.1.8
+
+- The "Focus on subject" card is set up by dialling rather than typing — a keyboard used to
+  cover the buttons you aim with. X travel defaults to the longest pass the rail allows and
+  cannot be dragged beyond it; the shot length is picked as a range first, then a slider.
+- The three aim points are shown as blocks holding what each recorded. Tapping one sends the
+  whole rig back to it, so the camera returns to that exact framing rather than just that
+  position along the rail.
+- Vertical tilt is no longer typed: B is recorded at each aim, and the pass tilts from the
+  first point's angle to the third's.
+- Homing several axes at once now brings all of them to zero. Previously every axis but the
+  last was left standing on its endstop.
+- Calibrating an axis measured in degrees gives it limits of half its travel either side of
+  zero, which is where a rotary axis actually sits.
+- Homing is a card of its own, and the requested/homed rows show the same indicators as the
+  endstops instead of reading Yes/No.
+- Requires firmware 0.1.6 or newer.
+
 # Release 0.1.7
 
 - New "Focus on subject" mode on the Motion tab: the slider travels along X while turning C
