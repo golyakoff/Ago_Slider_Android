@@ -3,10 +3,8 @@ package net.agolyakov.agoslider.ui.screen.device
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -14,10 +12,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -38,13 +36,17 @@ fun MotionTabContent(
     homeStatus: HomeStatus,
     scenarioState: FocusScenarioManager.State,
     scenarioStatus: ScenarioStatus?,
-    xPosition: Float?,
+    scenarioCoordinates: Triple<Float?, Float?, Float?>,
+    xTravelLimit: Float,
     onSendHomeCommand: (Boolean, Boolean, Boolean) -> Unit,
-    onJogScenarioC: (Float) -> Unit,
     onJogScenarioX: (Float) -> Unit,
-    onMarkScenarioAim: (Float) -> Unit,
-    onClearScenarioAims: () -> Unit,
-    onStartScenario: (Float, Float, Float, Float?) -> Unit,
+    onJogScenarioC: (Float) -> Unit,
+    onJogScenarioB: (Float) -> Unit,
+    onActivateScenarioPoint: (Int, Float) -> Unit,
+    onDefineScenarioPoint: (Float) -> Unit,
+    onScenarioGoToStart: () -> Unit,
+    onResetScenario: () -> Unit,
+    onStartScenario: (Float) -> Unit,
     onStopScenario: () -> Unit
 ) {
     Column(
@@ -54,85 +56,61 @@ fun MotionTabContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        CardTitle(Icons.Default.Home, stringResource(R.string.motion_homing))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = { onSendHomeCommand(true, false, false) },
-                modifier = Modifier.weight(1f)
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(stringResource(R.string.motion_home_x))
-            }
-            Button(
-                onClick = { onSendHomeCommand(false, true, false) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(stringResource(R.string.motion_home_c))
-            }
-            Button(
-                onClick = { onSendHomeCommand(false, false, true) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(stringResource(R.string.motion_home_b))
-            }
-        }
-        Button(
-            onClick = { onSendHomeCommand(true, true, true) },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.motion_home_all))
-        }
+                CardTitle(Icons.Default.Home, stringResource(R.string.motion_homing))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { onSendHomeCommand(true, false, false) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(R.string.motion_home_x))
+                    }
+                    Button(
+                        onClick = { onSendHomeCommand(false, true, false) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(R.string.motion_home_c))
+                    }
+                    Button(
+                        onClick = { onSendHomeCommand(false, false, true) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(R.string.motion_home_b))
+                    }
+                }
+                Button(
+                    onClick = { onSendHomeCommand(true, true, true) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.motion_home_all))
+                }
 
-        // Home status table
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-            Column(modifier = Modifier.padding(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = stringResource(R.string.motion_home_requested),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = axesState(homeStatus.requested),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = stringResource(R.string.motion_homed_status),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = axesState(homeStatus.homed),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
+                // Status sits on the same level as the buttons rather than in a card of its
+                // own — it belongs to this card, and nesting one inside another says otherwise
+                HomeStatusRow(stringResource(R.string.motion_home_requested), homeStatus.requested)
+                HomeStatusRow(stringResource(R.string.motion_homed_status), homeStatus.homed)
             }
         }
 
         FocusScenarioCard(
             state = scenarioState,
             status = scenarioStatus,
-            xPosition = xPosition,
-            onJogC = onJogScenarioC,
+            coordinates = scenarioCoordinates,
+            xTravelLimit = xTravelLimit,
             onJogX = onJogScenarioX,
-            onMarkAim = onMarkScenarioAim,
-            onClearAims = onClearScenarioAims,
+            onJogC = onJogScenarioC,
+            onJogB = onJogScenarioB,
+            onActivatePoint = onActivateScenarioPoint,
+            onDefinePoint = onDefineScenarioPoint,
+            onGoToStart = onScenarioGoToStart,
+            onReset = onResetScenario,
             onStart = onStartScenario,
             onStop = onStopScenario
         )
@@ -140,15 +118,23 @@ fun MotionTabContent(
 }
 
 @Composable
-private fun axesState(state: Triple<Boolean, Boolean, Boolean>): String {
-    val yes = stringResource(R.string.answer_yes)
-    val no = stringResource(R.string.answer_no)
-    return stringResource(
-        R.string.motion_axes_state,
-        if (state.first) yes else no,
-        if (state.second) yes else no,
-        if (state.third) yes else no
-    )
+private fun HomeStatusRow(label: String, state: Triple<Boolean, Boolean, Boolean>) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            AxisStateDot("X", state.first)
+            AxisStateDot("C", state.second)
+            AxisStateDot("B", state.third)
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -161,13 +147,17 @@ private fun MotionTabPreview(darkTheme: Boolean) {
             homeStatus = HomeStatus(Triple(true, true, false), Triple(true, false, false)),
             scenarioState = FocusScenarioManager.State(),
             scenarioStatus = null,
-            xPosition = null,
+            scenarioCoordinates = Triple(null, null, null),
+            xTravelLimit = 780f,
             onSendHomeCommand = { _, _, _ -> },
-            onJogScenarioC = {},
             onJogScenarioX = {},
-            onMarkScenarioAim = {},
-            onClearScenarioAims = {},
-            onStartScenario = { _, _, _, _ -> },
+            onJogScenarioC = {},
+            onJogScenarioB = {},
+            onActivateScenarioPoint = { _, _ -> },
+            onDefineScenarioPoint = {},
+            onScenarioGoToStart = {},
+            onResetScenario = {},
+            onStartScenario = {},
             onStopScenario = {}
         )
     }

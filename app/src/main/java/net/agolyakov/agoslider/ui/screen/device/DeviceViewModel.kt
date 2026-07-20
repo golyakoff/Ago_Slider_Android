@@ -49,13 +49,15 @@ class DeviceViewModel @Inject constructor(
     val scenarioState = focusScenarioManager.state
     val scenarioStatus = focusScenarioManager.status
 
-    fun jogScenarioC(deltaDeg: Float) = focusScenarioManager.jogC(deltaDeg)
     fun jogScenarioX(deltaMm: Float) = focusScenarioManager.jogX(deltaMm)
-    fun markScenarioAim(xTravel: Float) = focusScenarioManager.markAim(xTravel)
-    fun clearScenarioAims() = focusScenarioManager.clearAims()
-    fun startScenario(xTravel: Float, bTravel: Float, seconds: Float, distanceMm: Float?) {
-        focusScenarioManager.start(xTravel, bTravel, seconds, distanceMm)
-    }
+    fun jogScenarioC(deltaDeg: Float) = focusScenarioManager.jogC(deltaDeg)
+    fun jogScenarioB(deltaDeg: Float) = focusScenarioManager.jogB(deltaDeg)
+    fun activateScenarioPoint(index: Int, xTravel: Float) =
+        focusScenarioManager.activatePoint(index, xTravel)
+    fun defineScenarioPoint(xTravel: Float) = focusScenarioManager.definePoint(xTravel)
+    fun scenarioGoToStart() = focusScenarioManager.goToStart()
+    fun resetScenario() = focusScenarioManager.reset()
+    fun startScenario(seconds: Float) { focusScenarioManager.start(seconds) }
     fun stopScenario() = focusScenarioManager.stop()
     val batteryLevel = bluetoothService.batteryLevel
     val firmwareVersion = bluetoothService.firmwareVersion

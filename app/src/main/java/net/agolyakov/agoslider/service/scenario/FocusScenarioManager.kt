@@ -43,7 +43,7 @@ class FocusScenarioManager @Inject constructor(
      * fully determined: both the subject's position along the rail AND its distance fall out of
      * the measurements, so the distance no longer has to be judged by eye.
      */
-    data class AimPoint(val xUnits: Float, val cUnits: Float)
+    data class AimPoint(val xUnits: Float, val cUnits: Float, val bUnits: Float)
 
     data class Solution(
         val subjectAlongRail: Float,   // mm on the X coordinate scale
@@ -53,11 +53,18 @@ class FocusScenarioManager @Inject constructor(
     )
 
     data class State(
-        val aims: List<AimPoint> = emptyList(),
+        val points: List<AimPoint?> = listOf(null, null, null),
+        val activeIndex: Int = 0,
         val solution: Solution? = null,
         val error: Error? = null
     ) {
         enum class Error { NEED_THREE_POINTS, INCONSISTENT, NOT_READY, UNSUPPORTED, REFUSED }
+
+        val definedCount: Int get() = points.count { it != null }
+        val allDefined: Boolean get() = definedCount == 3
+
+        /** A point may be visited once its predecessor exists — the travel is measured from it. */
+        fun canActivate(index: Int) = index in 0..2 && index <= definedCount
     }
 
     private val _state = MutableStateFlow(State())
@@ -67,55 +74,82 @@ class FocusScenarioManager @Inject constructor(
 
     // ========================== Aiming ==========================
 
-    /** Nudge C while the user lines the subject up in the frame. */
-    fun jogC(deltaDeg: Float) = positionManager.moveRelative(0f, deltaDeg, 0f)
-
-    /** Nudge X while the user places the carriage. */
     fun jogX(deltaMm: Float) = positionManager.moveRelative(deltaMm, 0f, 0f)
+    fun jogC(deltaDeg: Float) = positionManager.moveRelative(0f, deltaDeg, 0f)
+    fun jogB(deltaDeg: Float) = positionManager.moveRelative(0f, 0f, deltaDeg)
 
-    fun moveXTo(target: Float) = positionManager.moveAxisTo(0, target)
-
-    /** Where the carriage stands, so the card can show it next to the jog buttons. */
+    /** Where the axes stand, so the card can show them beside the jog buttons. */
     val coordinates = positionManager.coordinates
 
     /**
-     * Record where C ended up for the X position it was aimed from, then drive X to where the
-     * next aim belongs. The three points are spread over exactly the travel the pass will use
-     * — start, middle, end — which is both the least the user has to think about and the best
-     * conditioned data for the solver, since it measures the curve over the interval that will
-     * actually be filmed.
+     * Make a point current and drive the carriage to it. An already-defined point sends X back
+     * to its recorded position; the next undefined one sends X to where that mark belongs,
+     * spreading the three over exactly the travel that will be filmed — which is also the
+     * best-conditioned data the solver can get, since it measures the curve over the interval
+     * that matters.
      */
-    fun markAim(xTravel: Float) {
+    fun activatePoint(index: Int, xTravel: Float) {
+        val state = _state.value
+        if (!state.canActivate(index)) return
+        _state.value = state.copy(activeIndex = index, error = null)
+
+        val recorded = state.points[index]
+        val here = positionManager.coordinates.value.units
+        if (recorded != null) {
+            // Returning to a point means returning the whole rig to it, not just the carriage:
+            // the aim it holds is the combination of all three axes, and restoring X alone
+            // would show the mark's position with the camera pointing somewhere else
+            positionManager.moveRelative(
+                recorded.xUnits - here.first,
+                recorded.cUnits - here.second,
+                recorded.bUnits - here.third
+            )
+            return
+        }
+
+        // An undefined point has no aim to restore yet — only the carriage knows where to go
+        val first = state.points[0] ?: return             // point 1 is wherever the user put it
+        val targetX = if (index == 1) first.xUnits + xTravel / 2f else first.xUnits + xTravel
+        positionManager.moveAxisTo(0, targetX)
+    }
+
+    /** Fix the current point at the axes' present coordinates. */
+    fun definePoint(xTravel: Float) {
         val coords = positionManager.coordinates.value
-        if (!coords.valid.first || !coords.valid.second) {
+        if (!coords.valid.first || !coords.valid.second || !coords.valid.third) {
             _state.value = _state.value.copy(error = State.Error.NOT_READY)
             return
         }
-        val aims = _state.value.aims + AimPoint(coords.units.first, coords.units.second)
-        _state.value = State(aims = aims, solution = if (aims.size >= 3) solve(aims) else null)
+        val state = _state.value
+        val points = state.points.toMutableList()
+        points[state.activeIndex] =
+            AimPoint(coords.units.first, coords.units.second, coords.units.third)
 
-        // The first aim fixes where the pass begins; the rest follow from the travel
-        val start = aims.first()
-        when (aims.size) {
-            1 -> positionManager.moveAxisTo(0, start.xUnits + xTravel / 2f)
-            2 -> positionManager.moveAxisTo(0, start.xUnits + xTravel)
-            3 -> {
-                // Both axes must go back, not just the carriage. The device tracks C relative
-                // to wherever it stands when the run begins, so leaving C at the angle it held
-                // at the END of the pass would mean the camera starts already aimed where it
-                // should finish — and then barely turns at all. Sent as one command so the two
-                // axes travel together.
-                val here = positionManager.coordinates.value.units
-                positionManager.moveRelative(
-                    start.xUnits - here.first,
-                    start.cUnits - here.second,
-                    0f
-                )
-            }
-        }
+        val filled = points.filterNotNull()
+        val solution = if (filled.size == 3) solve(filled) else null
+        val next = points.indexOfFirst { it == null }.takeIf { it >= 0 } ?: state.activeIndex
+        _state.value = State(points = points, activeIndex = next, solution = solution)
+
+        // Step the carriage on to where the next mark belongs
+        if (next != state.activeIndex) activatePoint(next, xTravel)
     }
 
-    fun clearAims() {
+    /**
+     * Send every axis back to the first point. The device tracks C relative to where it stands
+     * when a run begins, so starting from the closing angle would have the camera already aimed
+     * at the end of the shot; B likewise has to begin at its first recorded tilt.
+     */
+    fun goToStart() {
+        val first = _state.value.points[0] ?: return
+        val here = positionManager.coordinates.value.units
+        positionManager.moveRelative(
+            first.xUnits - here.first,
+            first.cUnits - here.second,
+            first.bUnits - here.third
+        )
+    }
+
+    fun reset() {
         _state.value = State()
     }
 
@@ -129,7 +163,7 @@ class FocusScenarioManager @Inject constructor(
      * nothing on a phone and is far more robust than a Newton solve that can walk off a cliff.
      */
     private fun solve(aims: List<AimPoint>): Solution? {
-        val a = aims.takeLast(3).sortedBy { it.xUnits }
+        val a = aims.sortedBy { it.xUnits }
         val (p1, p2, p3) = Triple(a[0], a[1], a[2])
         val span = p3.xUnits - p1.xUnits
         if (span <= 0f) return null
@@ -211,45 +245,50 @@ class FocusScenarioManager @Inject constructor(
      * @param distanceOverrideMm  set to use a typed-in distance instead of the solved one;
      *                            null keeps the measured value, 0 means infinity (C stays put)
      */
-    fun start(xTravel: Float, bTravel: Float, seconds: Float, distanceOverrideMm: Float?): Boolean {
+    /**
+     * Hand the pass to the device.
+     *
+     * Both the distance and the tilt come from the three aimed points rather than from typed
+     * numbers: the geometry was measured, and B simply runs from the tilt recorded at the first
+     * point to the one recorded at the third.
+     */
+    fun start(seconds: Float): Boolean {
         if (!bluetoothService.scenarioSupported()) {
             _state.value = _state.value.copy(error = State.Error.UNSUPPORTED)
             return false
         }
-        val solution = _state.value.solution
-        val distanceMm = distanceOverrideMm ?: solution?.distance
-        if (distanceMm == null && distanceOverrideMm == null) {
-            _state.value = _state.value.copy(error = State.Error.NEED_THREE_POINTS)
+        val state = _state.value
+        val solution = state.solution
+        val first = state.points[0]
+        val last = state.points[2]
+        if (solution == null || first == null || last == null) {
+            _state.value = state.copy(error = State.Error.NEED_THREE_POINTS)
             return false
         }
         val coords = positionManager.coordinates.value
-        if (!coords.valid.first) {
-            _state.value = _state.value.copy(error = State.Error.NOT_READY)
+        if (!coords.valid.first || !coords.valid.second) {
+            _state.value = state.copy(error = State.Error.NOT_READY)
             return false
         }
 
         // The device works in X pulses for the geometry: only the ratio of the two distances
         // matters there, so expressing both the same way avoids a unit conversion on the far side
-        val subjectSteps = positionManager.unitsToStepsPublic(
-            solution?.subjectAlongRail ?: coords.units.first, 0
-        )
-        val distanceSteps = if (distanceMm == null || distanceMm <= 0f) 0
-        else positionManager.unitsToStepsPublic(distanceMm, 0)
-        val xTravelSteps = positionManager.unitsToStepsPublic(xTravel, 0)
-        val bTravelSteps = positionManager.unitsToStepsPublic(bTravel, 2)
-        val cSign = solution?.cSign ?: 1
+        val subjectSteps = positionManager.unitsToStepsPublic(solution.subjectAlongRail, 0)
+        val distanceSteps = positionManager.unitsToStepsPublic(solution.distance, 0)
+        val xTravelSteps = positionManager.unitsToStepsPublic(last.xUnits - first.xUnits, 0)
+        val bTravelSteps = positionManager.unitsToStepsPublic(last.bUnits - first.bUnits, 2)
 
         val payload = ByteBuffer.allocate(FOCUS_PAYLOAD_LEN).order(ByteOrder.LITTLE_ENDIAN)
         payload.putInt(subjectSteps)
         payload.putInt(distanceSteps)
         payload.putInt(xTravelSteps)
         payload.putInt(bTravelSteps)
-        payload.put(cSign.toByte())
+        payload.put(solution.cSign.toByte())
         payload.put(0)
 
         val durationMs = (seconds * 1000f).toLong().coerceAtLeast(1L)
         Log.i(tag, "Start: subject=$subjectSteps d=$distanceSteps x=$xTravelSteps " +
-            "b=$bTravelSteps sign=$cSign ${durationMs}ms")
+            "b=$bTravelSteps sign=${solution.cSign} ${durationMs}ms")
         val sent = bluetoothService.sendScenarioStart(
             ScenarioStatus.ID_FOCUS, durationMs, payload.array()
         )

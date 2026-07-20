@@ -117,9 +117,9 @@ fun ServiceTabContent(
             ) {
                 CardTitle(Icons.Default.Sensors, stringResource(R.string.service_limits_title))
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                    LimitIndicator("X", limitStatus.first)
-                    LimitIndicator("C", limitStatus.second)
-                    LimitIndicator("B", limitStatus.third)
+                    AxisStateDot("X", limitStatus.first)
+                    AxisStateDot("C", limitStatus.second)
+                    AxisStateDot("B", limitStatus.third)
                 }
             }
         }
@@ -232,30 +232,6 @@ private fun calibrationPhaseLabel(phase: CalibrationPhase): String = stringResou
         CalibrationPhase.FAILED -> R.string.calib_phase_failed
     }
 )
-
-/**
- * Endstop state as an axis letter next to a dot. Colour alone would not carry it — red/green
- * is the classic pair colour-blind readers cannot separate — so the dot is also filled when
- * the switch is pressed and a hollow ring when it is not.
- */
-@Composable
-private fun LimitIndicator(axis: String, triggered: Boolean) {
-    val color = if (triggered) {
-        MaterialTheme.colorScheme.tertiary
-    } else {
-        MaterialTheme.colorScheme.error
-    }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(axis, style = MaterialTheme.typography.bodyMedium)
-        Canvas(modifier = Modifier.size(14.dp)) {
-            if (triggered) {
-                drawCircle(color)
-            } else {
-                drawCircle(color, style = Stroke(width = 2.dp.toPx()))
-            }
-        }
-    }
-}
 
 @Composable
 private fun MoveAxisSlider(

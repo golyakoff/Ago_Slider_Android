@@ -165,4 +165,22 @@
     <string name="scenario_jog_c">Навести C (град)</string>
     <string name="value_unknown">—</string>
     <string name="scenario_aim_recorded">Точка %1$d: X %2$s мм, C %3$s°</string>
+    <string name="scenario_x_travel_value">Ход X: %1$s мм</string>
+    <string name="scenario_duration_label">Длительность: %1$s</string>
+    <string name="scenario_range_seconds">1–60 с</string>
+    <string name="scenario_range_minutes">2–60 мин</string>
+    <string name="scenario_range_long">61–120 мин</string>
+    <string name="scenario_dur_seconds">%1$d с</string>
+    <string name="scenario_dur_min_sec">%1$d мин %2$02d с</string>
+    <string name="scenario_point_n">Точка %1$d</string>
+    <string name="scenario_define_point">Задать точку %1$d</string>
+    <string name="scenario_define_confirm_title">Задать точку %1$d?</string>
+    <string name="scenario_define_confirm_text">Текущие координаты осей будут записаны в эту точку.</string>
+    <string name="scenario_define_confirm_yes">Задать</string>
+    <string name="scenario_define_confirm_no">Отмена</string>
+    <string name="scenario_reset">Сброс</string>
+    <string name="scenario_go_to_start">На старт</string>
+    <string name="scenario_jog_x_value">Переместить X (мм) — сейчас %1$s</string>
+    <string name="scenario_jog_c_value">Переместить C (град) — сейчас %1$s</string>
+    <string name="scenario_jog_b_value">Переместить B (град) — сейчас %1$s</string>
 </resources>

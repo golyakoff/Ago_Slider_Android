@@ -168,4 +168,22 @@
     <string name="scenario_jog_c">Aim C (deg)</string>
     <string name="value_unknown">—</string>
     <string name="scenario_aim_recorded">Mark %1$d: X %2$s mm, C %3$s°</string>
+    <string name="scenario_x_travel_value">X travel: %1$s mm</string>
+    <string name="scenario_duration_label">Duration: %1$s</string>
+    <string name="scenario_range_seconds">1–60 s</string>
+    <string name="scenario_range_minutes">2–60 min</string>
+    <string name="scenario_range_long">61–120 min</string>
+    <string name="scenario_dur_seconds">%1$d s</string>
+    <string name="scenario_dur_min_sec">%1$d min %2$02d s</string>
+    <string name="scenario_point_n">Point %1$d</string>
+    <string name="scenario_define_point">Set point %1$d</string>
+    <string name="scenario_define_confirm_title">Set point %1$d?</string>
+    <string name="scenario_define_confirm_text">The current coordinates of the axes will be recorded for this point.</string>
+    <string name="scenario_define_confirm_yes">Set</string>
+    <string name="scenario_define_confirm_no">Cancel</string>
+    <string name="scenario_reset">Reset</string>
+    <string name="scenario_go_to_start">Go to start</string>
+    <string name="scenario_jog_x_value">Move X (mm) — now %1$s</string>
+    <string name="scenario_jog_c_value">Move C (deg) — now %1$s</string>
+    <string name="scenario_jog_b_value">Move B (deg) — now %1$s</string>
 </resources>

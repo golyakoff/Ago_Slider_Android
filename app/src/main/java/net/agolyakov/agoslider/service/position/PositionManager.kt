@@ -111,15 +111,21 @@ class PositionManager @Inject constructor(
         scope.launch { bluetoothService.unitsPerStep.drop(1).collect { invalidateAll() } }
         scope.launch { bluetoothService.invertDir.drop(1).collect { invalidateAll() } }
 
-        // Once an axis reports homed, drive it off the endstop by the home offset — that
-        // position becomes coordinate 0
+        // Once EVERY axis of the run reports homed, drive them off their endstops by the home
+        // offsets — those positions become coordinate 0.
+        //
+        // Waiting for the whole batch is the point: the firmware refuses a MOVE while its
+        // homing run is active, and a run covering several axes stays active until the last
+        // one arrives. Sending an axis its offset the moment that axis finished meant the
+        // early finishers' moves were silently dropped, and "home all" left X and B sitting
+        // on their switches while only the last axis reached zero.
         scope.launch {
             bluetoothService.homeStatus.collect { status ->
-                for (axis in 0..2) {
-                    if (status.homed.at(axis) && pendingHomeOffset.remove(axis)) {
-                        applyHomeOffset(axis)
-                    }
-                }
+                if (pendingHomeOffset.isEmpty()) return@collect
+                val batch = pendingHomeOffset.toList()
+                if (batch.any { !status.homed.at(it) }) return@collect
+                pendingHomeOffset.clear()
+                applyHomeOffsets(batch)
             }
         }
 
@@ -299,7 +305,13 @@ class PositionManager @Inject constructor(
         // Let the parked position land before trusting the frame
         delay(FW_POSITION_SYNC_MS)
         val spanUnits = stepsToUnits(terminal.spanSteps, axis)
-        val measuredMax = spanUnits - offsetUnits
+        // A rotary axis is centred on its zero: the useful travel is the same either side, so
+        // its limits are half the measured span in each direction. A linear axis is not — the
+        // rail's zero sits just clear of the near endstop, so its range runs from minus the
+        // park offset up to whatever is left of the span.
+        val rotary = bluetoothService.axisUnit.value.at(axis)
+        val measuredMin = if (rotary) -spanUnits / 2f else -offsetUnits
+        val measuredMax = if (rotary) spanUnits / 2f else spanUnits - offsetUnits
         if (spanUnits <= coarse) {
             Log.w(tag, "Calibration axis=$axis: span=$spanUnits is not plausible")
             _calibration.value = CalibrationState(axis, CalibrationPhase.FAILED)
@@ -313,12 +325,13 @@ class PositionManager @Inject constructor(
         val settings = _settings.value
         saveSettings(
             settings.copy(
-                limitMin = settings.limitMin.with(axis, -offsetUnits),
+                limitMin = settings.limitMin.with(axis, measuredMin),
                 limitMax = settings.limitMax.with(axis, measuredMax)
             )
         )
         _calibration.value = CalibrationState(axis, CalibrationPhase.DONE)
-        Log.i(tag, "Axis $axis calibrated (hardware): span=$spanUnits min=${-offsetUnits} max=$measuredMax, parked at 0")
+        Log.i(tag, "Axis $axis calibrated (hardware): span=$spanUnits rotary=$rotary " +
+            "min=$measuredMin max=$measuredMax, parked at 0")
     }
 
     private fun mapDevicePhase(phase: Int): CalibrationPhase = when (phase) {
@@ -335,19 +348,26 @@ class PositionManager @Inject constructor(
 
     // ========================== Home offset ==========================
 
-    private fun applyHomeOffset(axis: Int) {
+    private fun applyHomeOffsets(axes: List<Int>) {
         scope.launch {
             // Same firmware homing-flag race as in runCalibration — see the comment there
             delay(HOMED_SETTLE_MS)
-            val offsetSteps = unitsToSteps(_settings.value.homeOffset.at(axis), axis)
-            Log.d(tag, "Applying home offset on axis $axis: $offsetSteps steps")
-            if (offsetSteps != 0) {
-                sendAxisMove(axis, offsetSteps)
-                delay(moveDurationMs(offsetSteps, axis))
+            val steps = IntArray(3)
+            for (axis in axes) {
+                steps[axis] = unitsToSteps(_settings.value.homeOffset.at(axis), axis)
             }
-            stepCounts[axis] = 0
-            validAxes[axis] = true
-            protectedAxes.remove(axis)
+            Log.d(tag, "Applying home offsets on axes $axes: ${steps.toList()}")
+            if (steps.any { it != 0 }) {
+                // One command for all of them: the axes are independent, and moving them
+                // together is both quicker and free of the ordering the firmware dislikes
+                bluetoothService.sendMoveCommand(steps[0], steps[1], steps[2])
+                delay(axes.maxOf { moveDurationMs(steps[it], it) })
+            }
+            for (axis in axes) {
+                stepCounts[axis] = 0
+                validAxes[axis] = true
+                protectedAxes.remove(axis)
+            }
             publish()
         }
     }

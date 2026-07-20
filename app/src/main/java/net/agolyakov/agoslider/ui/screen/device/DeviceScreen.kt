@@ -46,6 +46,7 @@ import net.agolyakov.agoslider.data.model.ble.HomeStatus
 import net.agolyakov.agoslider.data.model.position.AxisCoordinates
 import net.agolyakov.agoslider.data.model.position.CalibrationState
 import net.agolyakov.agoslider.data.model.position.PositioningSettings
+import kotlin.math.floor
 import net.agolyakov.agoslider.data.model.power.PowerSample
 import net.agolyakov.agoslider.data.model.scenario.ScenarioStatus
 import net.agolyakov.agoslider.service.scenario.FocusScenarioManager
@@ -177,10 +178,13 @@ fun DeviceScreen(
         onSendHomeCommand = viewModel::sendHomeCommand,
         scenarioState = scenarioState,
         scenarioStatus = scenarioStatus,
-        onJogScenarioC = viewModel::jogScenarioC,
         onJogScenarioX = viewModel::jogScenarioX,
-        onMarkScenarioAim = viewModel::markScenarioAim,
-        onClearScenarioAims = viewModel::clearScenarioAims,
+        onJogScenarioC = viewModel::jogScenarioC,
+        onJogScenarioB = viewModel::jogScenarioB,
+        onActivateScenarioPoint = viewModel::activateScenarioPoint,
+        onDefineScenarioPoint = viewModel::defineScenarioPoint,
+        onScenarioGoToStart = viewModel::scenarioGoToStart,
+        onResetScenario = viewModel::resetScenario,
         onStartScenario = viewModel::startScenario,
         onStopScenario = viewModel::stopScenario,
         onSendMoveCommand = viewModel::sendMoveCommand,
@@ -238,11 +242,14 @@ fun DeviceScreenContent(
     onSendHomeCommand: (Boolean, Boolean, Boolean) -> Unit,
     scenarioState: FocusScenarioManager.State,
     scenarioStatus: ScenarioStatus?,
-    onJogScenarioC: (Float) -> Unit,
     onJogScenarioX: (Float) -> Unit,
-    onMarkScenarioAim: (Float) -> Unit,
-    onClearScenarioAims: () -> Unit,
-    onStartScenario: (Float, Float, Float, Float?) -> Unit,
+    onJogScenarioC: (Float) -> Unit,
+    onJogScenarioB: (Float) -> Unit,
+    onActivateScenarioPoint: (Int, Float) -> Unit,
+    onDefineScenarioPoint: (Float) -> Unit,
+    onScenarioGoToStart: () -> Unit,
+    onResetScenario: () -> Unit,
+    onStartScenario: (Float) -> Unit,
     onStopScenario: () -> Unit,
     onSendMoveCommand: () -> Unit,
     onMoveXChange: (Int) -> Unit,
@@ -298,12 +305,27 @@ fun DeviceScreenContent(
                     homeStatus = homeStatus,
                     scenarioState = scenarioState,
                     scenarioStatus = scenarioStatus,
-                    xPosition = coordinates.units.first.takeIf { coordinates.valid.first },
+                    // The longest pass the rail allows: its calibrated span less the home
+                    // offset at each end, floored to tens so the figure never exceeds the
+                    // travel that actually exists
+                    xTravelLimit = run {
+                        val span = positioning.limitMax.first - positioning.limitMin.first
+                        val usable = span - 2f * positioning.homeOffset.first
+                        floor(usable / 10f) * 10f
+                    }.coerceAtLeast(10f),
+                    scenarioCoordinates = Triple(
+                        coordinates.units.first.takeIf { coordinates.valid.first },
+                        coordinates.units.second.takeIf { coordinates.valid.second },
+                        coordinates.units.third.takeIf { coordinates.valid.third }
+                    ),
                     onSendHomeCommand = onSendHomeCommand,
-                    onJogScenarioC = onJogScenarioC,
                     onJogScenarioX = onJogScenarioX,
-                    onMarkScenarioAim = onMarkScenarioAim,
-                    onClearScenarioAims = onClearScenarioAims,
+                    onJogScenarioC = onJogScenarioC,
+                    onJogScenarioB = onJogScenarioB,
+                    onActivateScenarioPoint = onActivateScenarioPoint,
+                    onDefineScenarioPoint = onDefineScenarioPoint,
+                    onScenarioGoToStart = onScenarioGoToStart,
+                    onResetScenario = onResetScenario,
                     onStartScenario = onStartScenario,
                     onStopScenario = onStopScenario
                 )
@@ -490,11 +512,14 @@ fun DeviceScreenPreview(darkTheme: Boolean, initialTab: DeviceTab = DeviceTab.Mo
             onSendHomeCommand = { _, _, _ -> },
             scenarioState = FocusScenarioManager.State(),
             scenarioStatus = null,
-            onJogScenarioC = {},
             onJogScenarioX = {},
-            onMarkScenarioAim = {},
-            onClearScenarioAims = {},
-            onStartScenario = { _, _, _, _ -> },
+            onJogScenarioC = {},
+            onJogScenarioB = {},
+            onActivateScenarioPoint = { _, _ -> },
+            onDefineScenarioPoint = {},
+            onScenarioGoToStart = {},
+            onResetScenario = {},
+            onStartScenario = {},
             onStopScenario = {},
             onSendMoveCommand = {},
             onMoveXChange = {},

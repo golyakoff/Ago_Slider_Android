@@ -1,6 +1,7 @@
 package net.agolyakov.agoslider.ui.screen.device
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -98,6 +100,22 @@ fun SettingsGroup(
         }
         AnimatedVisibility(visible = expanded) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+        }
+    }
+}
+
+/**
+ * An axis letter beside a dot, used wherever a per-axis boolean is shown — endstops, homing
+ * status. Filled versus hollow carries the state alongside the colour on purpose: red and
+ * green is the one pair colour-blind readers cannot separate, so shape has to say it too.
+ */
+@Composable
+fun AxisStateDot(axis: String, active: Boolean) {
+    val color = if (active) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(axis, style = MaterialTheme.typography.bodyMedium)
+        Canvas(modifier = Modifier.size(14.dp)) {
+            if (active) drawCircle(color) else drawCircle(color, style = Stroke(width = 2.dp.toPx()))
         }
     }
 }
