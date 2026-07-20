@@ -1,3 +1,13 @@
+# Release 0.1.9
+
+- A "Continuous rotation" setting marks an axis that turns full circles past a single index
+  magnet. Calibrating such an axis now zeroes it on the magnet itself — previously the zero
+  landed half a turn away — and gives it the full circle as its range.
+- Homing one axis no longer shows the others as un-homed. The indicator now says the same
+  thing as the coordinate: this axis is anchored to its endstop and still is.
+- The axis indicators are the same size in both states, whichever tab they appear on.
+- Requires firmware 0.1.7 or newer.
+
 # Release 0.1.8
 
 - The "Focus on subject" card is set up by dialling rather than typing — a keyboard used to
