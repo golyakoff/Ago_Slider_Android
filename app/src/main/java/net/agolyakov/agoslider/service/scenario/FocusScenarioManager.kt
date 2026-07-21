@@ -49,7 +49,11 @@ class FocusScenarioManager @Inject constructor(
         val subjectAlongRail: Float,   // mm on the X coordinate scale
         val distance: Float,           // mm, perpendicular from the rail
         val cSign: Int,                // which way C turns as X advances
-        val residualDeg: Float         // how well the three readings agree; a sanity check
+        val residualDeg: Float,        // how well the three C readings agree; a sanity check
+        val verticalOffsetMm: Float,   // subject height relative to the camera's tilt zero,
+                                       // signed and already folded with the B axis polarity;
+                                       // 0 = level, B is left alone
+        val tiltResidualDeg: Float     // how well the three B readings fit one 3D point
     )
 
     data class State(
@@ -226,31 +230,71 @@ class FocusScenarioManager @Inject constructor(
         }
 
         val residualDeg = (Math.sqrt(best.third) / DEG_TO_RAD).toFloat()
-        Log.i(tag, "Solved: subject=${best.first} distance=${best.second} " +
-            "sign=$cSign residual=$residualDeg deg")
+        val (verticalOffset, tiltResidual) = solveVerticalOffset(a, best.first, best.second)
+        Log.i(tag, "Solved: subject=${best.first} distance=${best.second} sign=$cSign " +
+            "residual=$residualDeg deg, dz=$verticalOffset mm tiltResidual=$tiltResidual deg")
         return Solution(
             subjectAlongRail = best.first.toFloat(),
             distance = best.second.toFloat(),
             cSign = cSign,
-            residualDeg = residualDeg
+            residualDeg = residualDeg,
+            verticalOffsetMm = verticalOffset.toFloat(),
+            tiltResidualDeg = tiltResidual.toFloat()
         )
+    }
+
+    /**
+     * Recovers the subject's vertical offset from the three aimed B angles, given the along-rail
+     * position and distance already found from C.
+     *
+     * The tilt to a fixed point is B = B0 + atan(dz / r(x)), r(x) = sqrt(D^2 + (x_s - x)^2).
+     * Differencing removes the unknown mounting offset B0 and leaves one signed unknown, dz —
+     * which folds together the subject's height AND the B axis polarity, since atan is odd. It
+     * is a smooth 1-D fit, so a grid search refined around the best cell finds it cheaply, the
+     * same way the C solve handles its two unknowns. The residual says how well one 3D point
+     * explains all three tilts.
+     */
+    private fun solveVerticalOffset(
+        aims: List<AimPoint>, subject: Double, distance: Double
+    ): Pair<Double, Double> {
+        val r = aims.map { Math.hypot(distance, subject - it.xUnits) }
+        val b = aims.map { it.bUnits.toDouble() }
+
+        fun residual(dz: Double): Double {
+            val pred = r.map { Math.atan2(dz, it) }              // radians
+            val offset = b.indices.sumOf { b[it] * DEG_TO_RAD - pred[it] } / b.size
+            return b.indices.sumOf {
+                val e = b[it] * DEG_TO_RAD - pred[it] - offset
+                e * e
+            }
+        }
+
+        var lo = -30_000.0                                       // 30 m above or below: any real rig
+        var hi = 30_000.0
+        var best = 0.0
+        var bestErr = Double.MAX_VALUE
+        repeat(REFINEMENTS) {
+            val stepDz = (hi - lo) / GRID
+            for (i in 0..GRID) {
+                val dz = lo + stepDz * i
+                val err = residual(dz)
+                if (err < bestErr) { bestErr = err; best = dz }
+            }
+            lo = best - MARGIN * stepDz
+            hi = best + MARGIN * stepDz
+        }
+        val residualDeg = Math.sqrt(bestErr) / DEG_TO_RAD
+        return best to residualDeg
     }
 
     // ========================== Running ==========================
 
     /**
-     * @param xTravel  signed travel in mm
-     * @param bTravel  signed travel in degrees
-     * @param seconds  how long the whole pass should take
-     * @param distanceOverrideMm  set to use a typed-in distance instead of the solved one;
-     *                            null keeps the measured value, 0 means infinity (C stays put)
-     */
-    /**
      * Hand the pass to the device.
      *
-     * Both the distance and the tilt come from the three aimed points rather than from typed
-     * numbers: the geometry was measured, and B simply runs from the tilt recorded at the first
-     * point to the one recorded at the third.
+     * Distance and vertical offset both come from the three aimed points, not from typed
+     * numbers: the geometry was measured. The device then keeps the subject framed in both
+     * axes by aiming pan and tilt at that fixed 3D point the whole way.
      */
     fun start(seconds: Float): Boolean {
         if (!bluetoothService.scenarioSupported()) {
@@ -276,19 +320,22 @@ class FocusScenarioManager @Inject constructor(
         val subjectSteps = positionManager.unitsToStepsPublic(solution.subjectAlongRail, 0)
         val distanceSteps = positionManager.unitsToStepsPublic(solution.distance, 0)
         val xTravelSteps = positionManager.unitsToStepsPublic(last.xUnits - first.xUnits, 0)
-        val bTravelSteps = positionManager.unitsToStepsPublic(last.bUnits - first.bUnits, 2)
+        // The vertical offset must share a scale with the distances the device works in, so it
+        // is expressed in X-step-equivalent pulses too — a vertical millimetre is the same
+        // length as a rail millimetre
+        val verticalSteps = positionManager.unitsToStepsPublic(solution.verticalOffsetMm, 0)
 
         val payload = ByteBuffer.allocate(FOCUS_PAYLOAD_LEN).order(ByteOrder.LITTLE_ENDIAN)
         payload.putInt(subjectSteps)
         payload.putInt(distanceSteps)
         payload.putInt(xTravelSteps)
-        payload.putInt(bTravelSteps)
+        payload.putInt(verticalSteps)
         payload.put(solution.cSign.toByte())
         payload.put(0)
 
         val durationMs = (seconds * 1000f).toLong().coerceAtLeast(1L)
         Log.i(tag, "Start: subject=$subjectSteps d=$distanceSteps x=$xTravelSteps " +
-            "b=$bTravelSteps sign=${solution.cSign} ${durationMs}ms")
+            "vert=$verticalSteps sign=${solution.cSign} ${durationMs}ms")
         val sent = bluetoothService.sendScenarioStart(
             ScenarioStatus.ID_FOCUS, durationMs, payload.array()
         )
