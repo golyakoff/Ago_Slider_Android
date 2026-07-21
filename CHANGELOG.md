@@ -1,3 +1,10 @@
+# Release 0.1.10
+
+- "Focus on subject" now keeps the subject framed vertically as well as horizontally. Aim the
+  tilt at the subject in each of the three aim points and the pass holds it centred top-to-
+  bottom the whole way, instead of drifting out of frame in the middle.
+- Requires firmware 0.1.8 or newer.
+
 # Release 0.1.9
 
 - A "Continuous rotation" setting marks an axis that turns full circles past a single index
